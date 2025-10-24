@@ -1,2 +1,5 @@
 yolo11n-pose.pt
-./runs/
+/runs/
+/pose-coolness-project/
+/datasets/
+yolo11n-seg.pt
