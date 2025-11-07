@@ -8,3 +8,6 @@ yolov8n-pose.pt
 /images/
 coolness_scores.csv
 /pose_black_bg
+coolness_dataset.json
+pose_keypoints.csv
+predicted_scores.csv
