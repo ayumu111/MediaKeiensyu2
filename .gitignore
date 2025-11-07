@@ -2,4 +2,12 @@ yolo11n-pose.pt
 /runs/
 /pose-coolness-project/
 /datasets/
-yolo11n-seg.pt
+yolo11n-pose.pt
+/testimages/
+yolov8n-pose.pt
+/images/
+coolness_scores.csv
+/pose_black_bg
+coolness_dataset.json
+pose_keypoints.csv
+predicted_scores.csv
