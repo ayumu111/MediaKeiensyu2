@@ -3,33 +3,34 @@ import pygame, sys, os, time
 pygame.init()
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Score Meter (Sequential Animation)")
+pygame.display.set_caption("Score Meter (Overlay Text)")
 clock = pygame.time.Clock()
 
 # --- フォント設定 ---
 font_path1 = "IoEI.ttf" # タイトル用（フィバ字フォント）
-font_path2 = "C:/Windows/Fonts/msgothic.ttc" # スコア用（標準フォント）
+# font_path2 = "C:/Windows/Fonts/msgothic.ttc" # スコア用（標準フォント）
+font_path2 = "Paintball_Beta_3.ttf"
 
 try:
-    score_font = pygame.font.Font(font_path2, 20)
+    # スコア用フォントを少し大きくして見やすくします (20 -> 24)
+    score_font = pygame.font.Font(font_path2, 24)
     title_font = pygame.font.Font(font_path1, 80)
     print(f"成功: フォント読み込み完了。")
 except FileNotFoundError as e:
     print(f"エラー: フォントファイルが見つかりません: {e}")
-    score_font = pygame.font.SysFont("arial", 20)
+    score_font = pygame.font.SysFont("arial", 24, bold=True)
     title_font = pygame.font.SysFont("arial", 80, bold=True)
 except Exception as e:
     print(f"フォント読み込みエラー: {e}")
-    score_font = pygame.font.SysFont(None, 20)
+    score_font = pygame.font.SysFont(None, 24)
     title_font = pygame.font.SysFont(None, 80)
 
 # 各回の上限値
 SEGMENT_LIMITS = [100.0, 100.0, 300.0]
 
-# --- 変更点: 初期値を0にする（タイトルが終わるまで待機するため）---
+# --- 初期値を0にする ---
 current_red_segs = [0.0, 0.0, 0.0]
 current_blue_segs = [0.0, 0.0, 0.0]
-# 目標値は設定ファイルから読むのでとりあえず初期値を入れておく
 target_red_segs = [80.0, 90.0, 150.0]
 target_blue_segs = [50.0, 50.0, 100.0]
 
@@ -38,34 +39,30 @@ SCORES_FILE = "scores.txt"
 READ_INTERVAL = 0.5
 _last_read = 0.0
 
-# --- 変更点: タイトルアニメーション用の変数を準備 ---
+# --- タイトルアニメーション用の変数 ---
 TITLE_STR = "けっかはっぴょう"
 TITLE_TARGET_Y = 30
 TITLE_START_Y = -150.0
-TITLE_EASING = 0.12  # 個別落下なので少しキビキビさせる
-CHAR_DROP_DELAY = 0.15 # 文字ごとの落下遅延時間（秒）
-START_DELAY = 0.5      # 開始までのタメ時間（秒）
+TITLE_EASING = 0.12
+CHAR_DROP_DELAY = 0.15
+START_DELAY = 0.5
 
 title_chars = []
-# 全体の幅を計算して中央揃えの開始X座標を求める
 total_width = title_font.size(TITLE_STR)[0]
 current_char_x = WIDTH // 2 - total_width // 2
 start_time_base = time.time() + START_DELAY
 
 for i, char in enumerate(TITLE_STR):
     char_surf = title_font.render(char, True, pygame.Color("WHITE"))
-    # 各文字のデータを辞書で管理
     title_chars.append({
         'surf': char_surf,
-        'tx': current_char_x,        # 目標X座標
-        'cy': TITLE_START_Y,         # 現在のY座標
-        'start_time': start_time_base + i * CHAR_DROP_DELAY+0.1*i, # 落下開始時刻
-        'finished': False            # 落下完了フラグ
+        'tx': current_char_x,
+        'cy': TITLE_START_Y,
+        'start_time': start_time_base + i * CHAR_DROP_DELAY+0.1*i,
+        'finished': False
     })
-    # 次の文字のX座標へ（文字幅分ずらす）
     current_char_x += char_surf.get_width()
 
-# タイトルアニメーション完了フラグ
 title_animation_done = False
 
 
@@ -119,25 +116,47 @@ def step_toward_list(curr_list, target_list, dt):
             out.append(c + (maxstep if diff > 0 else -maxstep))
     return out
 
+# --- 変更点: 描画順序を変更し、テキストをバーの上に重ねる ---
 def draw_stacked_meter(x, y, w, h, segs, colors, border_color):
+    # 1. 背景枠と枠線を描画
     pygame.draw.rect(screen, pygame.Color("WHITE"), (x-10, y-10, w+20, h+20))
     pygame.draw.rect(screen, border_color, (x, y, w, h))
     
     total_max = 500.0
-    x0 = x + 4
+    
+    # バーの描画開始位置を枠の左端に戻す
+    bar_start_x = x + 4
+    # バーが使える幅（左右の余白4pxずつを引く）
     inner_w = w - 8
     
+    current_bar_x = bar_start_x
+    
+    # 2. 色付きバーを先に描画する
     for v, col in zip(segs, colors):
         safe_v = max(0.0, v)
         seg_w = int((safe_v / total_max) * inner_w)
         if seg_w > 0:
-            pygame.draw.rect(screen, col, (x0, y+4, seg_w, h-8))
-            x0 += seg_w
-            
+            pygame.draw.rect(screen, col, (current_bar_x, y+4, seg_w, h-8))
+            current_bar_x += seg_w
+
+    # 3. スコアテキストを白色でレンダリングし、バーの上に重ねて描画する
     total = sum(segs)
     pct = int(round((total / total_max) * 100))
-    txt = score_font.render(f"{int(round(total))} / 500 ({pct}%)", True, pygame.Color("BLACK"))
-    screen.blit(txt, (x + w + 12, y + h//2 - txt.get_height()//2))
+    # 文字色を WHITE に変更
+    txt = score_font.render(f"{int(round(total))} / 500 ({pct}%)", True, pygame.Color("WHITE"))
+    
+    # テキストの描画位置：バーの開始位置付近（少し右にずらす）に設定して重ねる
+    text_x = x + 20
+    # 上下中央揃え
+    text_y = y + h//2 - txt.get_height()//2
+    
+    # テキストの影（任意：視認性を上げるため黒い影を少しずらして描画）
+    shadow_txt = score_font.render(f"{int(round(total))} / 500 ({pct}%)", True, pygame.Color("BLACK"))
+    screen.blit(shadow_txt, (text_x + 2, text_y + 2))
+    
+    # 白いテキスト本体を描画
+    screen.blit(txt, (text_x, text_y))
+
 
 RED_COLS = [pygame.Color(255,140,140), pygame.Color(255,80,80), pygame.Color(180,0,0)]
 BLUE_COLS = [pygame.Color(160,200,255), pygame.Color(80,160,255), pygame.Color(0,80,200)]
@@ -148,26 +167,24 @@ while True:
     current_time = time.time()
     try_read_scores_file()
 
-    # --- 変更点: タイトルアニメーションの更新 ---
+    # --- タイトルアニメーションの更新 ---
     all_chars_finished = True
     for char_data in title_chars:
-        # 開始時間が来ていたらアニメーション
         if current_time >= char_data['start_time']:
             dist_y = TITLE_TARGET_Y - char_data['cy']
             if dist_y > 0.5:
                 char_data['cy'] += dist_y * TITLE_EASING
-                all_chars_finished = False # まだ動いている文字がある
+                all_chars_finished = False
             else:
                 char_data['cy'] = TITLE_TARGET_Y
                 char_data['finished'] = True
         else:
-             all_chars_finished = False # まだ開始していない文字がある
+             all_chars_finished = False
     
-    # 全ての文字が完了したらフラグを立てる
     if all_chars_finished:
         title_animation_done = True
 
-    # --- 変更点: メーターのアニメーション更新（タイトル完了後のみ） ---
+    # --- メーターのアニメーション更新 ---
     if title_animation_done:
         current_red_segs = step_toward_list(current_red_segs, target_red_segs, dt)
         current_blue_segs = step_toward_list(current_blue_segs, target_blue_segs, dt)
@@ -175,17 +192,18 @@ while True:
     # 描画開始
     screen.fill((45,124,124))
 
-    # --- 変更点: タイトル各文字の描画 ---
+    # --- タイトル各文字の描画 ---
     for char_data in title_chars:
         screen.blit(char_data['surf'], (char_data['tx'], char_data['cy']))
     
-    # メーター描画
-    draw_stacked_meter(100, 200, 600, 80, current_red_segs, RED_COLS, pygame.Color("BLACK"))
-    draw_stacked_meter(100, 300, 600, 80, current_blue_segs, BLUE_COLS, pygame.Color("BLACK"))
+    # --- メーターの描画 ---
+    meter_width = 680
+    draw_stacked_meter(100, 200, meter_width, 80, current_red_segs, RED_COLS, pygame.Color("BLACK"))
+    draw_stacked_meter(100, 300, meter_width, 80, current_blue_segs, BLUE_COLS, pygame.Color("BLACK"))
 
     # アイコン描画
-    pygame.draw.circle(screen, RED_COLS[-1], (50, 240), 40)
-    pygame.draw.circle(screen, BLUE_COLS[-1], (50, 340), 40)
+    pygame.draw.circle(screen, RED_COLS[-1], (45, 240), 40)
+    pygame.draw.circle(screen, BLUE_COLS[-1], (45, 350), 40)
 
     pygame.display.update()
 
@@ -193,9 +211,6 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit(); sys.exit()
-        # メーターアニメーション中もキー操作は受け付けるようにしています
-        # もしタイトルアニメーション中は操作無効にしたい場合は、
-        # ここにも `if title_animation_done:` を追加してください。
         elif event.type == pygame.KEYDOWN:
             change = 15.0 / 3.0
             if event.key == pygame.K_r:
