@@ -64,11 +64,11 @@ SHADOW_OFFSET = (6, 6)
 SHADOW_ALPHA = 120
 OUTLINE_OFFSETS = [(-3,0),(3,0),(0,-3),(0,3),(-2,-2),(2,-2),(-2,2),(2,2)]
 
-def draw_donut(surface, center, inner_r, outer_r, color=(255,255,255,255)):
+def draw_donut(surface, center, inner_r, outer_r, color=(255, 255, 255, 255)):
     tmp = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     pygame.draw.circle(tmp, color, center, outer_r)
-    pygame.draw.circle(tmp, (0,0,0,0), center, inner_r)
-    surface.blit(tmp, (0,0))
+    pygame.draw.circle(tmp, (0, 0, 0, 0), center, inner_r)
+    surface.blit(tmp, (0, 0))
 
 
 # ============================
@@ -92,13 +92,13 @@ photo = pygame.transform.smoothscale(
 FONT_PATH = "Paintball_Beta_3.ttf"
 font = pygame.font.Font(FONT_PATH, FONT_SIZE)
 
-text_surface = font.render(TEXT_STR, True, (255,255,255))
-shadow_surface = font.render(TEXT_STR, True, (0,0,0))
+text_surface = font.render(TEXT_STR, True, (255, 255, 255))
+shadow_surface = font.render(TEXT_STR, True, (0, 0, 0))
 shadow_surface.set_alpha(SHADOW_ALPHA)
 
 outline_surfaces = []
 for ox, oy in OUTLINE_OFFSETS:
-    s = font.render(TEXT_STR, True, (0,0,0))
+    s = font.render(TEXT_STR, True, (0, 0, 0))
     outline_surfaces.append((s, ox, oy))
 
 rotated_text_surface = pygame.transform.rotate(text_surface, TEXT_ANGLE)
@@ -149,7 +149,7 @@ class Donut:
 
     def draw(self, s, alpha=255):
         if self.active:
-            draw_donut(s, self.center, self.inner, self.outer, (255,255,255,alpha))
+            draw_donut(s, self.center, self.inner, self.outer, (255, 255, 255, alpha))
 
 
 donut1 = Donut(DONUT_CENTER_1)
@@ -192,11 +192,11 @@ while running:
             current_width = initial_width + expand_speed*t
             current_angle = rotation_speed*t
 
-        screen.fill((0,0,0))
+        screen.fill((0, 0, 0))
 
         diag = int(math.hypot(WIDTH, HEIGHT)*2.0)
-        rect_s = pygame.Surface((max(1,int(current_width)), diag), pygame.SRCALPHA)
-        rect_s.fill((255,255,255))
+        rect_s = pygame.Surface((max(1, int(current_width)), diag), pygame.SRCALPHA)
+        rect_s.fill((255, 255, 255))
         rotated = pygame.transform.rotate(rect_s, current_angle)
         rect = rotated.get_rect(center=CENTER)
         screen.blit(rotated, rect)
