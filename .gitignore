@@ -11,3 +11,6 @@ coolness_scores.csv
 coolness_dataset.json
 pose_keypoints.csv
 predicted_scores.csv
+/images_single_fullbody/
+geme.py
+pose_bleck_bg.zip
