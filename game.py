@@ -7,9 +7,10 @@ pygame.display.set_caption("Score Meter (Title with Shadow)")
 clock = pygame.time.Clock()
 
 # --- フォント設定 ---
-font_path1 = "IoEI.ttf" # タイトル用
+# font_path1 = "IoEI.ttf" # タイトル用
 font_path2 = "Paintball_Beta_3.ttf" # スコア＆Winner用
-
+font_path1 = "Splatfont2.ttf" # タイトル用
+#font_path2 = "Splatfont2.ttf" # スコア＆Winner用
 try:
     score_font = pygame.font.Font(font_path2, 24)
     title_font = pygame.font.Font(font_path1, 80)
@@ -80,7 +81,7 @@ for i, char in enumerate(TITLE_STR):
 title_animation_done = False
 
 # --- Winner表示用の変数 ---
-WINNER_STR = "Winner"
+WINNER_STR = "Winner1P"
 winner_surf = winner_font.render(WINNER_STR, True, pygame.Color("YELLOW"))
 winner_shadow = winner_font.render(WINNER_STR, True, pygame.Color("BLACK"))
 winner_rect = winner_surf.get_rect(center=(WIDTH // 2 - 30, 480))
@@ -271,8 +272,8 @@ while True:
     draw_stacked_meter(100, 300, meter_width, 80, current_blue_segs, BLUE_COLS, pygame.Color("BLACK"))
 
     # アイコン描画
-    pygame.draw.circle(screen, RED_COLS[-1], (45, 240), 40)
-    pygame.draw.circle(screen, BLUE_COLS[-1], (45, 350), 40)
+    pygame.draw.circle(screen, (255,0,0), (45, 240), 40)
+    pygame.draw.circle(screen, (0,0,255), (45, 350), 40)
 
     # --- Winnerテキストとドットの描画 ---
     if show_winner:
