@@ -4,6 +4,13 @@ import math
 import time
 import os
 
+# ====================================
+# ★ 先攻勝利か後攻勝利かを設定する場所
+# ====================================
+FIRST_PLAYER_WIN = True   # True = 先攻勝利 / False = 後攻勝利
+# FIRST_PLAYER_WIN = False   # True = 先攻勝利 / False = 後攻勝利
+# ====================================
+
 pygame.init()
 SCREEN_SIZE = (800, 600)
 screen = pygame.display.set_mode(SCREEN_SIZE)
@@ -12,29 +19,39 @@ clock = pygame.time.Clock()
 WIDTH, HEIGHT = screen.get_size()
 CENTER = (WIDTH // 2, HEIGHT // 2)
 
+# --- 勝敗による設定変更 ---
+if FIRST_PLAYER_WIN:
+    BACKGROUND_COLOR = (255, 80, 80)     # 赤系
+    IMAGE_FILENAME = "img1.png"
+    TEXT_STR = "WINER 1P!"
+else:
+    BACKGROUND_COLOR = (80, 80, 255)     # 水色系（今まで通り）
+    IMAGE_FILENAME = "img2.png"
+    TEXT_STR = "WINER 2P!"
+
+# ====================================
+# ここから下は元コードと同じ（変数は勝敗で変化済）
+# ====================================
+
 initial_width = 4
 expand_speed = 900
 rotation_speed = 100
 pause_time = 0.3
 
-BACKGROUND_COLOR = (180, 220, 255)
 FADE_DURATION = 1.0
 
-DONUT_THICKNESS = 100
+DONUT_THICKNESS = 200
 DONUT_MAX_RADIUS = int(math.hypot(WIDTH, HEIGHT) * 2.0)
-DONUT_SPEED_STABLE = DONUT_MAX_RADIUS / 2.2
+DONUT_SPEED_STABLE = DONUT_MAX_RADIUS / 3.2
 
-DONUT_CENTER_1 = (int(WIDTH * 1.15), int(-HEIGHT * 0.15))
-DONUT_CENTER_2 = (int(WIDTH * 1.2), int(HEIGHT * -0.2))
-
-IMAGE_FILENAME = "img1.png"
+DONUT_CENTER_1 = (int(WIDTH * 0.5), int(HEIGHT * 0.5))
+DONUT_CENTER_2 = (int(WIDTH * 0.5), int(HEIGHT * 0.5))
 
 rotation_speed_fast = 720
-rotation_speed_slow = 2
+rotation_speed_slow = 5
 target_rotations = 1
 
-TEXT_STR = "せんこうのかち！"
-FONT_SIZE = 100
+FONT_SIZE = 150
 TEXT_ANGLE = 12
 TEXT_SPEED_FAST = 2200
 TEXT_SPEED_SLOW = 60
@@ -53,6 +70,10 @@ def draw_donut(surface, center, inner_r, outer_r, color=(255,255,255,255)):
     pygame.draw.circle(tmp, (0,0,0,0), center, inner_r)
     surface.blit(tmp, (0,0))
 
+
+# ============================
+#   画像ロード
+# ============================
 if not os.path.exists(IMAGE_FILENAME):
     print("画像が見つかりません:", IMAGE_FILENAME)
     pygame.quit()
@@ -65,7 +86,12 @@ photo = pygame.transform.smoothscale(
     (int(photo.get_width()*scale_ratio), int(photo.get_height()*scale_ratio))
 )
 
-font = pygame.font.SysFont("meiryo", FONT_SIZE, bold=True)
+# ============================
+#   文字描画準備
+# ============================
+FONT_PATH = "Paintball_Beta_3.ttf"
+font = pygame.font.Font(FONT_PATH, FONT_SIZE)
+
 text_surface = font.render(TEXT_STR, True, (255,255,255))
 shadow_surface = font.render(TEXT_STR, True, (0,0,0))
 shadow_surface.set_alpha(SHADOW_ALPHA)
@@ -92,6 +118,10 @@ rad = math.radians(TEXT_ANGLE)
 move_dx = math.cos(rad)
 move_dy = -math.sin(rad)
 
+
+# ============================
+#   ドーナツクラス
+# ============================
 class Donut:
     def __init__(self, center):
         self.center = center
@@ -121,6 +151,7 @@ class Donut:
         if self.active:
             draw_donut(s, self.center, self.inner, self.outer, (255,255,255,alpha))
 
+
 donut1 = Donut(DONUT_CENTER_1)
 donut2 = Donut(DONUT_CENTER_2)
 donut2_started = False
@@ -136,8 +167,12 @@ current_width = initial_width
 current_angle = 0.0
 
 text_active = False
-text_fixed = False   # ★ 中央到達後の固定フラグ
+text_fixed = False
 
+
+# ============================
+#   メインループ
+# ============================
 running = True
 while running:
     dt = clock.tick(60)/1000.0
@@ -225,7 +260,6 @@ while running:
         rect = rotated.get_rect(center=CENTER)
         screen.blit(rotated, rect)
 
-        # ========= 修正版：文字中央停止ロジック =========
         if text_active:
             if not text_fixed:
                 dist = center_target_x - text_x
@@ -237,8 +271,7 @@ while running:
 
                 if text_x >= center_target_x:
                     text_x = center_target_x
-                    text_fixed = True   # ★ 到達 → 固定
-            # text_fixed=True のときは移動しない（値を変えない）
+                    text_fixed = True
 
             shadow_pos = (text_x+SHADOW_OFFSET[0], text_y+SHADOW_OFFSET[1])
             screen.blit(rotated_shadow_surface, shadow_pos)
@@ -247,7 +280,6 @@ while running:
                 screen.blit(surf, (text_x+ox, text_y+oy))
 
             screen.blit(rotated_text_surface, (text_x, text_y))
-        # ==================================================
 
         if donut2_started and (not donut2.active) and text_fixed:
             phase = 5
@@ -262,8 +294,10 @@ while running:
 
         shadow_pos = (text_x+SHADOW_OFFSET[0], text_y+SHADOW_OFFSET[1])
         screen.blit(rotated_shadow_surface, shadow_pos)
+
         for surf, ox, oy in rotated_outline_surfaces:
             screen.blit(surf, (text_x+ox, text_y+oy))
+
         screen.blit(rotated_text_surface, (text_x, text_y))
 
         if now - phase_start > 2.0:
