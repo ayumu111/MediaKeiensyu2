@@ -1,492 +1,602 @@
 import pygame
-import random
 import sys
 import cv2
 import numpy as np
 import mediapipe as mp
 import os
 import re
+import random
+import time
+from abc import ABC, abstractmethod
 
-# --- 設定 ---
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-FPS = 60
+# ====================================================
+# 1. Config: 設定・定数管理 (Magic Numberの排除)
+# ====================================================
+class Config:
+    # 画面設定
+    SCREEN_WIDTH = 800
+    SCREEN_HEIGHT = 600
+    FPS = 60
+    CAPTION = "Pose Battle Game - Refactored"
 
-# パス設定
-current_dir = os.path.dirname(os.path.abspath(__file__))
-FONT_FILE_IOEI = os.path.join(current_dir, "IoEI.ttf")
-PAINTBALL_FILE = os.path.join(current_dir, "Paintball_Beta_3.ttf") # ★変数名変更
-BOMB_FILE = os.path.join(current_dir, "bakudan.jpg")
+    # パス設定 (絶対パス)
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    PATH_FONT_IOEI = os.path.join(BASE_DIR, "IoEI.ttf")
+    PATH_FONT_PAINTBALL = os.path.join(BASE_DIR, "Paintball_Beta_3.ttf")
+    PATH_IMG_BOMB = os.path.join(BASE_DIR, "bakudan.jpg")
 
-# --- 起動時のファイルチェック ---
-print("--- ファイル読み込みチェック ---")
-if os.path.exists(PAINTBALL_FILE):
-    print(f"OK: {PAINTBALL_FILE}")
-else:
-    print(f"WARNING: {PAINTBALL_FILE} が見つかりません。")
+    # 色定義
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    RED = (255, 50, 50)
+    BLUE = (50, 50, 255)
+    GRAY = (100, 100, 100)
+    ORANGE = (255, 165, 0)
+    YELLOW = (255, 255, 0)
+    DUMMY_BG = (50, 50, 50)
+    
+    # ★追加: 未定義だった色
+    LIGHT_BLUE = (120, 180, 255)
+    DARK_BLUE  = (70, 120, 200)
 
-if os.path.exists(FONT_FILE_IOEI):
-    print(f"OK: {FONT_FILE_IOEI}")
-else:
-    print(f"WARNING: {FONT_FILE_IOEI} が見つかりません。")
-print("----------------------------")
+    # ゲームパラメータ
+    ROULETTE_ITEM_HEIGHT = 110
+    ROULETTE_SPIN_MIN = 1.5
+    ROULETTE_SPIN_MAX = 3.0
+    FUSE_DURATION = 3.0
+    COUNTDOWN_SECONDS = 5.0
+    
+    # お題リスト
+    THEMES = [
+        "グリコ", "かんがえるひと", "シェー", "かめはめは", "ジョジョだち",
+        "ダブルピース", "どげざ", "コマネチ", "いのち", "ごろうまる"
+    ]
 
-# 色の定義
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 50, 50)
-BLUE = (50, 50, 255)
-GRAY = (100, 100, 100)
-ORANGE = (255, 165, 0)
-YELLOW = (255, 255, 0)
-DUMMY_BG = (50, 50, 50)
-DARK_BLUE = (50, 50, 150)
-LIGHT_BLUE = (100, 100, 255)
+# ====================================================
+# 2. Utils: 便利関数群 (Easingなど)
+# ====================================================
+class Utils:
+    @staticmethod
+    def cvimage_to_pygame(image):
+        """OpenCV(BGR)画像をPygame(RGB)画像に変換"""
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        height, width = image_rgb.shape[:2]
+        return pygame.image.frombuffer(image_rgb.tobytes(), (width, height), 'RGB')
 
-# 状態定義
-STATE_SPINNING = 0
-STATE_STOPPING = 1
-STATE_FUSE     = 2
-STATE_EXPLOSION = 3
+    @staticmethod
+    def ease_out_cubic(x):
+        """イージング関数: 急速に始まり、ゆっくり終わる"""
+        return 1 - pow(1 - x, 3)
 
-# --- Helper Function ---
-def cvimage_to_pygame(image):
-    # BGR -> RGB, then create pygame surface
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    height, width = image_rgb.shape[:2]
-    # .tobytes() を使う（tostring() は非推奨のため修正）
-    image_surface = pygame.image.frombuffer(image_rgb.tobytes(), (width, height), 'RGB')
-    return image_surface
-
-# ★★★ フォント管理クラス（文字単位合成版） ★★★
-class FontManager:
+# ====================================================
+# 3. Managers: リソース・テキスト・ハードウェア
+# ====================================================
+class ResourceManager:
+    """リソース管理とフォールバック処理"""
     def __init__(self):
-        # フォントキャッシュ（キーは (font_type, size)）
-        self.fonts = {}
-        # ファイルパス
-        self.ioei_path = FONT_FILE_IOEI
-        self.paintball_path = PAINTBALL_FILE
+        self.fonts_ioei = {}
+        self.fonts_paintball = {}
+        self.bomb_img = self._load_image(Config.PATH_IMG_BOMB, (100, 100))
+        self._check_files()
 
-    def _load_font_file(self, path, size, fallback_name=None, scale=1.0):
-        """指定パスから pygame.font.Font を返す。失敗したら SysFont で代替"""
-        key = (path, int(size))
-        if key in self.fonts:
-            return self.fonts[key]
+    def _check_files(self):
+        """起動チェック"""
+        print("--- Resource Check ---")
+        for name, path in [("Paintball", Config.PATH_FONT_PAINTBALL), 
+                           ("IoEI", Config.PATH_FONT_IOEI), 
+                           ("Bomb", Config.PATH_IMG_BOMB)]:
+            status = "OK" if os.path.exists(path) else "MISSING"
+            print(f"[{status}] {name}: {path}")
+        print("----------------------")
+
+    def _load_image(self, path, size=None):
+        try:
+            img = pygame.image.load(path)
+            if size:
+                img = pygame.transform.scale(img, size)
+            return img
+        except OSError:
+            print(f"Warning: Failed to load image {path}")
+            return None
+
+    def get_font_object(self, path, size, cache_dict, fallback_sysfont="meiryo"):
+        """フォント取得（キャッシュ＆フォールバック付き）"""
+        if size in cache_dict:
+            return cache_dict[size]
         
         try:
-            font = pygame.font.Font(path, int(size * scale))
+            font = pygame.font.Font(path, size)
         except OSError:
-            # 明示的に警告を出す
-            print(f"Warning: font file '{path}' not found. Falling back to system font '{fallback_name}'.")
-            if fallback_name:
-                try:
-                    font = pygame.font.SysFont(fallback_name, int(size * scale))
-                except Exception:
-                    font = pygame.font.Font(None, int(size * scale))
-            else:
-                font = pygame.font.Font(None, int(size * scale))
+            # フォールバック処理
+            print(f"Warning: Font {path} not found. Using fallback '{fallback_sysfont}'.")
+            try:
+                font = pygame.font.SysFont(fallback_sysfont, size)
+            except:
+                font = pygame.font.Font(None, int(size * 1.5)) # 最終手段
         
-        self.fonts[key] = font
+        cache_dict[size] = font
         return font
 
-    def get_font(self, size, font_type="ioei"):
-        """font_type: 'ioei' または 'paintball' を指定"""
-        if font_type == "paintball":
-            # Paintball は少し大きめに表示したい場合などは scale を調整可能
-            return self._load_font_file(self.paintball_path, size, fallback_name="impact", scale=1.0)
-        else:
-            # iOEI 用（日本語用）
-            return self._load_font_file(self.ioei_path, size, fallback_name="meiryo", scale=1.0)
-
-    def is_japanese_char(self, ch):
-        """簡易判定：文字がひらがな/カタカナ/漢字の範囲にあるかチェック"""
-        code = ord(ch)
-        # ひらがな \u3040-\u309f, カタカナ \u30a0-\u30ff, 漢字 \u4e00-\u9fff, 全角記号など
-        return (0x3000 <= code <= 0x303f) or (0x3040 <= code <= 0x309f) or (0x30a0 <= code <= 0x30ff) or (0x4e00 <= code <= 0x9fff) or (0xff01 <= code <= 0xff5e)
+class TextRenderer:
+    """文字単位でフォントを切り替えて合成描画するクラス"""
+    def __init__(self, resource_manager):
+        self.rm = resource_manager
 
     def is_ascii_symbol_or_digit(self, ch):
-        """半角英数字または記号（基本 ASCII 範囲）なら True"""
-        code = ord(ch)
-        return 0x20 <= code <= 0x7e  # space(32)～ ~(126) の範囲
+        """半角英数字・記号のみか判定"""
+        return re.match(r'^[a-zA-Z0-9\s\.\:\!\-]+$', ch) is not None
 
     def render(self, text, size, color):
         """
-        混在対応レンダリング：
-        - 文字ごとに日本語なら IoEI、半角 ASCII なら Paintball を使って順に描画して一枚に合成して返す
+        1文字ずつ判定して描画し、1枚のSurfaceに合成して返す
+        - 数字・記号 -> Paintball (Impact)
+        - その他（日本語） -> IoEI (Meiryo)
         """
         if text == "":
             return pygame.Surface((0,0), pygame.SRCALPHA)
 
-        # まず各フォントオブジェクトを取得
-        font_ioei = self.get_font(size, "ioei")
-        font_paint = self.get_font(size, "paintball")
+        # キャッシュからフォント取得
+        font_ioei = self.rm.get_font_object(Config.PATH_FONT_IOEI, size, self.rm.fonts_ioei, "meiryo")
+        # Paintballがない場合は impact を代用
+        font_paint = self.rm.get_font_object(Config.PATH_FONT_PAINTBALL, size, self.rm.fonts_paintball, "impact")
 
-        # 文字ごとにサーフェスを作成し、全体のサイズを計算
+        glyphs = []
         total_width = 0
         max_height = 0
-        glyphs = []  # (surface, width, height)
-        
+
+        # 文字ごとにレンダリング
         for ch in text:
-            if self.is_japanese_char(ch):
-                font = font_ioei
-            elif self.is_ascii_symbol_or_digit(ch):
-                font = font_paint
+            if self.is_ascii_symbol_or_digit(ch):
+                target_font = font_paint
             else:
-                # その他（判定漏れなど）は IoEI を優先
-                font = font_ioei
-
-            # 1文字描画
-            glyph_surf = font.render(ch, True, color)
-            w, h = glyph_surf.get_size()
-            glyphs.append((glyph_surf, w, h))
+                target_font = font_ioei
             
+            g_surf = target_font.render(ch, True, color)
+            w, h = g_surf.get_size()
+            glyphs.append(g_surf)
             total_width += w
-            if h > max_height:
-                max_height = h
+            max_height = max(max_height, h)
 
-        # 合成用サーフェス（透明背景）を作成
+        # 合成
         surface = pygame.Surface((total_width, max_height), pygame.SRCALPHA)
-        
         x = 0
-        for glyph_surf, w, h in glyphs:
-            # 下揃えで描画 (max_height - h)
-            # ※フォントによってベースラインがズレる場合、ここを (max_height - h)//2 で中央揃えにする等の調整が可能
-            surface.blit(glyph_surf, (x, max_height - h))
-            x += w
+        for g_surf in glyphs:
+            # 下揃えで描画
+            h = g_surf.get_height()
+            surface.blit(g_surf, (x, max_height - h))
+            x += g_surf.get_width()
 
         return surface
 
-# --- Phase 3: ルーレット画面 ---
-class Phase3Scene:
-    def __init__(self, screen):
-        self.screen = screen
-        self.clock = pygame.time.Clock()
-        
-        self.font_mgr = FontManager()
-
-        # 爆弾画像
-        try:
-            self.bomb_img = pygame.image.load(BOMB_FILE)
-            self.bomb_img = pygame.transform.scale(self.bomb_img, (100, 100))
-        except OSError:
-            print(f"Warning: {BOMB_FILE} not found. Drawing rectangle instead.")
-            self.bomb_img = None
-
-        # お題
-        self.themes = [
-            "グリコ", "かんがえるひと", "シェー", "かめはめは", "ジョジョだち", 
-            "ダブルピース", "どげざ", "コマネチ", "いのち", "ごろうまる"
-        ]
-        
-        self.fuse_duration = 3.0
-        self.box_width = 400
-        self.box_height = 100
-        self.box_margin = 10
-        self.visible_items = 3
-        self.state = STATE_SPINNING
-        self.start_ticks = pygame.time.get_ticks()
-        self.fuse_start_ticks = 0
-        self.explosion_start_ticks = 0
-        self.scroll_pos = 0.0
-        self.current_speed = 25.0
-        self.item_height = self.box_height + self.box_margin
-        self.center_y = SCREEN_HEIGHT // 2 + 50 
-        self.final_theme = ""
-        self.spin_duration_target = random.uniform(1.5, 3.0)
-        self.friction = random.uniform(0.94, 0.97)
-
-    def draw_dynamite_fuse(self, progress):
-        start_x = 100
-        end_x = 680 
-        y_pos = 80
-        
-        if self.bomb_img:
-            bomb_x = end_x - 10 
-            bomb_y = y_pos - 20 
-            self.screen.blit(self.bomb_img, (bomb_x, bomb_y))
-        else:
-            dynamite_rect = pygame.Rect(end_x, y_pos - 15, 30, 60)
-            pygame.draw.rect(self.screen, RED, dynamite_rect)
-            pygame.draw.rect(self.screen, BLACK, dynamite_rect, 2)
-
-        # ★ここは「かな」を含むので IoEI で表示されます
-        text_label = self.font_mgr.render("さつえい かいし！", 24, RED)
-        label_rect = text_label.get_rect(center=(end_x + 50, y_pos + 90)) 
-        self.screen.blit(text_label, label_rect)
-
-        # 導線
-        current_fuse_x = start_x + (end_x - start_x) * progress
-        if current_fuse_x < end_x:
-            pygame.draw.line(self.screen, GRAY, (current_fuse_x, y_pos + 3), (end_x + 1, y_pos + 3), 2)
-            if 0.0 < progress < 1.0:
-                spark_size = random.randint(8, 16)
-                pygame.draw.circle(self.screen, ORANGE, (int(current_fuse_x), y_pos), spark_size)
-                pygame.draw.circle(self.screen, YELLOW, (int(current_fuse_x), y_pos), spark_size // 2)
-    
-    def draw_roulette(self):
-        roulette_bg_rect = pygame.Rect(
-            (SCREEN_WIDTH - self.box_width) // 2 - 20,
-            self.center_y - (self.item_height * self.visible_items // 2) - 20,
-            self.box_width + 40,
-            self.item_height * self.visible_items + 40
-        )
-        pygame.draw.rect(self.screen, GRAY, roulette_bg_rect)
-        clip_rect = pygame.Rect(0, roulette_bg_rect.top, SCREEN_WIDTH, roulette_bg_rect.height)
-        self.screen.set_clip(clip_rect)
-        base_index = int(self.scroll_pos / self.item_height)
-        offset_y = self.scroll_pos % self.item_height
-        start_i = base_index - self.visible_items // 2 - 1
-        end_i = base_index + self.visible_items // 2 + 2
-        for i in range(start_i, end_i):
-            theme_index = i % len(self.themes)
-            text = self.themes[theme_index]
-            pos_y = self.center_y + (i - base_index) * self.item_height - offset_y - self.box_height // 2
-            is_center = abs(pos_y + self.box_height // 2 - self.center_y) < self.item_height // 2
-            if self.state >= STATE_FUSE and is_center:
-                box_color = (255, 100, 100)
-            else:
-                box_color = LIGHT_BLUE if is_center else DARK_BLUE
-            box_rect = pygame.Rect((SCREEN_WIDTH - self.box_width) // 2, pos_y, self.box_width, self.box_height)
-            pygame.draw.rect(self.screen, box_color, box_rect, border_radius=10)
-            
-            # お題テキスト
-            text_surface = self.font_mgr.render(text, 60, WHITE)
-            text_rect = text_surface.get_rect(center=box_rect.center)
-            self.screen.blit(text_surface, text_rect)
-            
-        self.screen.set_clip(None)
-        highlight_rect = pygame.Rect(
-            (SCREEN_WIDTH - self.box_width) // 2 - 5,
-            self.center_y - self.box_height // 2 - 5,
-            self.box_width + 10,
-            self.box_height + 10
-        )
-        border_color = YELLOW
-        if self.state >= STATE_FUSE:
-             if (pygame.time.get_ticks() // 100) % 2 == 0:
-                 border_color = RED
-        pygame.draw.rect(self.screen, border_color, highlight_rect, 5, border_radius=15)
-
-    def run(self):
-        running = True
-        fuse_progress = 0.0
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-            current_ticks = pygame.time.get_ticks()
-            elapsed_total = (current_ticks - self.start_ticks) / 1000.0
-            if self.state == STATE_SPINNING:
-                self.scroll_pos += self.current_speed
-                if elapsed_total > self.spin_duration_target:
-                    self.state = STATE_STOPPING
-            elif self.state == STATE_STOPPING:
-                self.current_speed *= self.friction
-                self.scroll_pos += self.current_speed
-                if self.current_speed < 1.0:
-                    target_pos = round(self.scroll_pos / self.item_height) * self.item_height
-                    self.scroll_pos += (target_pos - self.scroll_pos) * 0.2
-                    if abs(self.scroll_pos - target_pos) < 0.5:
-                        self.scroll_pos = target_pos
-                        self.state = STATE_FUSE
-                        self.fuse_start_ticks = current_ticks
-                        final_index = int(self.scroll_pos / self.item_height) % len(self.themes)
-                        self.final_theme = self.themes[final_index]
-            elif self.state == STATE_FUSE:
-                fuse_elapsed = (current_ticks - self.fuse_start_ticks) / 1000.0
-                fuse_progress = fuse_elapsed / self.fuse_duration
-                if fuse_progress >= 1.0:
-                    fuse_progress = 1.0
-                    self.state = STATE_EXPLOSION
-                    self.explosion_start_ticks = current_ticks
-            self.screen.fill(WHITE)
-            
-            # ★文字合成のテストケース
-            msg = "おだいを きめています..."
-            if self.state == STATE_FUSE:
-                remaining = max(0, 3.0 - (current_ticks - self.fuse_start_ticks)/1000.0)
-                # 「さつえい まで」はIoEI、「3.00」はPaintball、「びょう」はIoEIで描画されます！
-                msg = f"さつえい まで {remaining:.2f} びょう"
-            elif self.state == STATE_EXPLOSION:
-                msg = "さつえい かいし！"
-            
-            text_guide = self.font_mgr.render(msg, 30, BLACK)
-            self.screen.blit(text_guide, (50, 30))
-            
-            self.draw_roulette()
-            self.draw_dynamite_fuse(fuse_progress)
-            
-            if self.state == STATE_EXPLOSION:
-                explosion_elapsed = (current_ticks - self.explosion_start_ticks) / 1000.0
-                radius = int(explosion_elapsed * 1000)
-                if radius < SCREEN_WIDTH * 1.5:
-                    pygame.draw.circle(self.screen, YELLOW, (700 + 15, 80 + 30), radius)
-                fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-                fade_surface.fill(RED)
-                alpha = min(255, int(explosion_elapsed * 2 * 255))
-                fade_surface.set_alpha(alpha)
-                self.screen.blit(fade_surface, (0, 0))
-                if alpha >= 255:
-                    running = False
-                    return self.final_theme
-            pygame.display.flip()
-            self.clock.tick(FPS)
-
-# --- Phase 4: 対戦画面２ ---
-class Phase4Scene:
-    def __init__(self, screen, theme, player_turn=1):
-        self.screen = screen
-        self.theme = theme
-        self.player_turn = player_turn
-        self.clock = pygame.time.Clock()
-        
-        self.font_mgr = FontManager()
-
-        print("カメラを起動しています...")
-        self.cap = cv2.VideoCapture(1, cv2.CAP_DSHOW) ###############################カメラ番号###################################
-        if not self.cap.isOpened():
-            print("エラー: カメラが見つかりません")
-            sys.exit()
-            
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, SCREEN_WIDTH)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, SCREEN_HEIGHT)
-
+class HardwareManager:
+    """カメラとMediaPipeの管理（自動検出＆エラーハンドリング）"""
+    def __init__(self):
+        self.cap = None
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose(
             static_image_mode=False,
-            model_complexity=1,
+            model_complexity=1, # 0:Lite, 1:Full, 2:Heavy
             enable_segmentation=False,
             min_detection_confidence=0.5
         )
         self.mp_drawing = mp.solutions.drawing_utils
-        self.drawing_spec_point = self.mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=5, circle_radius=5)
-        self.drawing_spec_line = self.mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=3)
+        self.draw_spec = self.mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2)
 
-        self.dummy_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.dummy_surface.fill(DUMMY_BG)
-        
-        text_theme = self.font_mgr.render(f"おだい: {self.theme}", 40, WHITE)
-        text_rect_theme = text_theme.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 30))
-        self.dummy_surface.blit(text_theme, text_rect_theme)
-        
-        text_info = self.font_mgr.render("ここに カメラが うつります", 24, GRAY)
-        text_rect_info = text_info.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 30))
-        self.dummy_surface.blit(text_info, text_rect_info)
-        
-        self.wait_duration = 1.0
-        self.anim_duration = 2.0
-        self.start_ticks = pygame.time.get_ticks()
+    def start_camera(self):
+        """使用可能なカメラを0番から順に探す"""
+        if self.cap is not None and self.cap.isOpened():
+            return True
 
-    def draw_turn_indicators(self):
-        box_width = 80
-        box_height = 35
-        margin = 10
-        start_x = 20
-        start_y = 65
+        print("Searching for camera...")
+        # 0番から3番までトライ
+        for cam_id in range(4):
+            # WindowsならDSHOW推奨
+            cap = cv2.VideoCapture(cam_id, cv2.CAP_DSHOW)
+            if cap.isOpened():
+                print(f"Camera found at index {cam_id}")
+                self.cap = cap
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, Config.SCREEN_WIDTH)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, Config.SCREEN_HEIGHT)
+                return True
+            cap.release()
         
-        p1_surf = pygame.Surface((box_width, box_height))
-        p1_surf.fill(RED)
-        p1_text = self.font_mgr.render("せんこう", 20, WHITE)
-        p1_rect = p1_text.get_rect(center=(box_width//2, box_height//2))
-        p1_surf.blit(p1_text, p1_rect)
+        print("Error: No working camera found.")
+        return False
+
+    def read_frame(self):
+        if self.cap:
+            ret, frame = self.cap.read()
+            return ret, frame
+        return False, None
+
+    def process_pose(self, frame):
+        """骨格推定（負荷軽減のため毎フレーム呼び出し注意）"""
+        if frame is None: return None
         
-        p2_surf = pygame.Surface((box_width, box_height))
-        p2_surf.fill(BLUE)
-        p2_text = self.font_mgr.render("こうこう", 20, WHITE)
-        p2_rect = p2_text.get_rect(center=(box_width//2, box_height//2))
-        p2_surf.blit(p2_text, p2_rect)
+        # 書き込み不可にして高速化
+        frame.flags.writeable = False
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(image_rgb)
+        frame.flags.writeable = True
+        
+        if results.pose_landmarks:
+            self.mp_drawing.draw_landmarks(
+                image=frame,
+                landmark_list=results.pose_landmarks,
+                connections=self.mp_pose.POSE_CONNECTIONS,
+                landmark_drawing_spec=self.draw_spec,
+                connection_drawing_spec=self.draw_spec
+            )
+        return frame
+
+    def release(self):
+        if self.cap:
+            self.cap.release()
+            self.cap = None
+
+# ====================================================
+# 4. Scenes: シーン基底クラスと各フェーズ
+# ====================================================
+class Scene(ABC):
+    def __init__(self, app):
+        self.app = app
+        self.renderer = app.text_renderer
+        self.screen = app.screen
+
+    # ライフサイクルメソッド
+    def on_enter(self): pass
+    def on_exit(self): pass
+    
+    # イベント処理委譲
+    def handle_event(self, event): pass
+
+    @abstractmethod
+    def update(self, dt): pass # dt: 経過時間(秒)
+
+    @abstractmethod
+    def draw(self): pass
+
+class Phase3Scene(Scene):
+    """お題決定ルーレット"""
+    def __init__(self, app):
+        super().__init__(app)
+        self.state = 0 # 0:Spin, 1:Stop, 2:Fuse, 3:Explosion
+        self.scroll_pos = 0.0
+        self.current_speed = 2500.0 # px/sec (dt対応のため値を大きく)
+        self.elapsed_spin = 0.0
+        
+        self.final_theme = ""
+        self.spin_duration = random.uniform(Config.ROULETTE_SPIN_MIN, Config.ROULETTE_SPIN_MAX)
+        
+        # 導火線
+        self.fuse_timer = 0.0
+        self.expl_timer = 0.0
+
+    def update(self, dt):
+        if self.state == 0: # Spinning
+            self.scroll_pos += self.current_speed * dt
+            self.elapsed_spin += dt
+            if self.elapsed_spin > self.spin_duration:
+                self.state = 1
+        
+        elif self.state == 1: # Stopping
+            # 減速処理
+            self.current_speed *= 0.95 
+            self.scroll_pos += self.current_speed * dt
+            
+            if self.current_speed < 50.0:
+                # 吸着計算 (中央に来るように)
+                h = Config.ROULETTE_ITEM_HEIGHT
+                # 現在位置から一番近い「アイテム中央」の位置を計算
+                target_pos = round(self.scroll_pos / h) * h
+                
+                # 線形補間で近づける
+                diff = target_pos - self.scroll_pos
+                self.scroll_pos += diff * 10 * dt # 10は吸着スピード
+                
+                if abs(diff) < 1.0:
+                    self.scroll_pos = target_pos
+                    self.state = 2
+                    # お題確定
+                    center_idx = int(self.scroll_pos / h)
+                    self.final_theme = Config.THEMES[center_idx % len(Config.THEMES)]
+
+        elif self.state == 2: # Fuse
+            self.fuse_timer += dt
+            if self.fuse_timer >= Config.FUSE_DURATION:
+                self.state = 3
+
+        elif self.state == 3: # Explosion
+            self.expl_timer += dt
+            if self.expl_timer > 0.5:
+                self.app.change_scene(Phase4Scene(self.app, self.final_theme))
+
+    def draw(self):
+        self.screen.fill(Config.WHITE)
+        
+        # ガイドテキスト
+        msg = "おだいを きめています..."
+        if self.state == 2:
+            rem = max(0, Config.FUSE_DURATION - self.fuse_timer)
+            msg = f"さつえい まで {rem:.2f} びょう"
+        elif self.state == 3:
+            msg = "さつえい かいし！"
+
+        t_surf = self.renderer.render(msg, 30, Config.BLACK)
+        self.screen.blit(t_surf, (50, 30))
+
+        self._draw_roulette()
+        self._draw_fuse()
+        
+        if self.state == 3:
+            self._draw_explosion()
+
+    def _draw_roulette(self):
+        h = Config.ROULETTE_ITEM_HEIGHT
+        box_w, box_h = 400, 100
+        center_y = Config.SCREEN_HEIGHT // 2 + 50
+        
+        # 基準インデックス計算
+        base_idx = int(self.scroll_pos / h)
+        offset_y = self.scroll_pos % h
+        
+        # 背景クリップ設定
+        bg_rect = pygame.Rect((Config.SCREEN_WIDTH - box_w)//2 - 20, 
+                              center_y - (h * 1.5) - 20, 
+                              box_w + 40, h * 3 + 40)
+        pygame.draw.rect(self.screen, Config.GRAY, bg_rect)
+        self.screen.set_clip(bg_rect)
+        
+        # ループ描画
+        for i in range(base_idx - 2, base_idx + 3):
+            text = Config.THEMES[i % len(Config.THEMES)]
+            # 描画位置Y
+            pos_y = center_y + (i - base_idx) * h - offset_y - box_h // 2
+            
+            # 中央判定
+            is_center = abs(pos_y + box_h//2 - center_y) < h // 2
+            
+            # 色決定
+            if self.state >= 2 and is_center:
+                color = (255, 100, 100)
+            else:
+                color = Config.LIGHT_BLUE if is_center else Config.DARK_BLUE
+            
+            # 描画
+            r = pygame.Rect((Config.SCREEN_WIDTH - box_w)//2, pos_y, box_w, box_h)
+            pygame.draw.rect(self.screen, color, r, border_radius=10)
+            
+            ts = self.renderer.render(text, 60, Config.WHITE)
+            tr = ts.get_rect(center=r.center)
+            self.screen.blit(ts, tr)
+
+        self.screen.set_clip(None)
+        
+        # ハイライト枠
+        hl_rect = pygame.Rect((Config.SCREEN_WIDTH - box_w)//2 - 5,
+                              center_y - box_h // 2 - 5,
+                              box_w + 10, box_h + 10)
+        border_col = Config.RED if (self.state >= 2 and int(pygame.time.get_ticks()/100)%2==0) else Config.YELLOW
+        pygame.draw.rect(self.screen, border_col, hl_rect, 5, border_radius=15)
+
+    def _draw_fuse(self):
+        progress = min(1.0, self.fuse_timer / Config.FUSE_DURATION) if self.state == 2 else (1.0 if self.state == 3 else 0.0)
+        
+        sx, ex, y = 100, 680, 80
+        
+        # 爆弾描画 (固定)
+        bomb = self.app.resource_manager.bomb_img
+        if bomb:
+            self.screen.blit(bomb, (ex - 10, y - 20))
+        else:
+            pygame.draw.rect(self.screen, Config.RED, (ex, y-15, 30, 60))
+
+        # ラベル
+        lbl = self.renderer.render("さつえい かいし！", 24, Config.RED)
+        self.screen.blit(lbl, lbl.get_rect(center=(ex + 50, y + 90)))
+
+        # 導線アニメーション
+        curr_x = sx + (ex - sx) * progress
+        if curr_x < ex:
+            pygame.draw.line(self.screen, Config.GRAY, (curr_x, y+3), (ex+1, y+3), 2)
+            if 0.0 < progress < 1.0:
+                size = random.randint(8, 16)
+                pygame.draw.circle(self.screen, Config.ORANGE, (int(curr_x), y), size)
+                pygame.draw.circle(self.screen, Config.YELLOW, (int(curr_x), y), size//2)
+
+    def _draw_explosion(self):
+        radius = int(self.expl_timer * 1500) # 速度調整
+        if radius < Config.SCREEN_WIDTH * 1.5:
+            pygame.draw.circle(self.screen, Config.YELLOW, (700, 80), radius)
+        
+        fade = pygame.Surface((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
+        fade.fill(Config.RED)
+        fade.set_alpha(min(255, int(self.expl_timer * 2 * 255)))
+        self.screen.blit(fade, (0, 0))
+
+class Phase4Scene(Scene):
+    """撮影画面"""
+    def __init__(self, app, theme, player_turn=1):
+        super().__init__(app)
+        self.theme = theme
+        self.player_turn = player_turn
+        
+        # アニメーション管理
+        self.anim_timer = 0.0
+        self.wait_sec = 1.0
+        self.anim_sec = 2.0
+        
+        # カウントダウン
+        self.is_counting = False
+        self.countdown_timer = Config.COUNTDOWN_SECONDS
+        
+        # ダミー画面
+        self.dummy_surf = pygame.Surface((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
+        self.dummy_surf.fill(Config.DUMMY_BG)
+        t = self.renderer.render(f"おだい: {self.theme}", 40, Config.WHITE)
+        self.dummy_surf.blit(t, t.get_rect(center=(Config.SCREEN_WIDTH//2, Config.SCREEN_HEIGHT//2 - 30)))
+        t2 = self.renderer.render("ここに カメラが うつります", 24, Config.GRAY)
+        self.dummy_surf.blit(t2, t2.get_rect(center=(Config.SCREEN_WIDTH//2, Config.SCREEN_HEIGHT//2 + 30)))
+
+    def on_enter(self):
+        # シーン開始時にカメラ起動
+        if not self.app.hardware.start_camera():
+            print("Failed to start camera.")
+
+    def on_exit(self):
+        # シーン終了時にカメラ停止（必要なら）
+        # self.app.hardware.release() 
+        pass
+
+    def update(self, dt):
+        # 1. 蓋アニメーション
+        if self.anim_timer < (self.wait_sec + self.anim_sec):
+            self.anim_timer += dt
+        else:
+            # 2. カウントダウン
+            if not self.is_counting:
+                self.is_counting = True
+            
+            if self.countdown_timer > 0:
+                self.countdown_timer -= dt
+                if self.countdown_timer < 0: 
+                    self.countdown_timer = 0
+                    print("SHUTTER!")
+                    # ここで撮影処理や次のシーンへの遷移を入れる
+
+    def draw(self):
+        # 1. カメラ映像
+        ret, frame = self.app.hardware.read_frame()
+        if ret:
+            frame = self.app.hardware.process_pose(frame)
+            cam_surf = Utils.cvimage_to_pygame(frame)
+            cam_surf = pygame.transform.scale(cam_surf, (Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
+            cam_surf = pygame.transform.flip(cam_surf, True, False)
+            self.screen.blit(cam_surf, (0, 0))
+
+        # 2. 蓋アニメーション（Easing適用）
+        if self.anim_timer < (self.wait_sec + self.anim_sec):
+            if self.anim_timer < self.wait_sec:
+                # 待機中
+                self.screen.blit(self.dummy_surf, (0, 0))
+            else:
+                # アニメ中
+                progress = (self.anim_timer - self.wait_sec) / self.anim_sec
+                eased = Utils.ease_out_cubic(progress) # イージング
+                
+                self.dummy_surf.set_alpha(int(255 * (1.0 - eased)))
+                scale = 1.0 - (eased * 0.8)
+                
+                nw = int(Config.SCREEN_WIDTH * scale)
+                nh = int(Config.SCREEN_HEIGHT * scale)
+                scaled = pygame.transform.scale(self.dummy_surf, (nw, nh))
+                
+                tx = -nw * 0.5 * eased # 左上へ
+                ty = -nh * 0.5 * eased
+                self.screen.blit(scaled, (int(tx), int(ty)))
+
+        # 3. UI
+        self._draw_ui()
+
+    def _draw_ui(self):
+        # お題
+        t = self.renderer.render(f"おだい: {self.theme}", 24, Config.WHITE)
+        s = self.renderer.render(f"おだい: {self.theme}", 24, Config.BLACK)
+        self.screen.blit(s, (22, 22))
+        self.screen.blit(t, (20, 20))
+        
+        # ターン表示
+        self._draw_turn()
+        
+        # タイマー
+        time_str = f"{self.countdown_timer:.2f}"
+        t_timer = self.renderer.render(time_str, 60, Config.RED)
+        self.screen.blit(t_timer, ((Config.SCREEN_WIDTH - t_timer.get_width())//2, 50))
+
+    def _draw_turn(self):
+        bx, by = 20, 65
+        bw, bh = 80, 35
+        
+        # 先攻 (文字合成で作成)
+        p1 = pygame.Surface((bw, bh))
+        p1.fill(Config.RED)
+        t1 = self.renderer.render("せんこう", 20, Config.WHITE)
+        p1.blit(t1, t1.get_rect(center=(bw//2, bh//2)))
+        
+        # 後攻
+        p2 = pygame.Surface((bw, bh))
+        p2.fill(Config.BLUE)
+        t2 = self.renderer.render("こうこう", 20, Config.WHITE)
+        p2.blit(t2, t2.get_rect(center=(bw//2, bh//2)))
         
         if self.player_turn == 1:
-            p1_surf.set_alpha(255)
-            p2_surf.set_alpha(80)
-            pygame.draw.rect(p1_surf, WHITE, (0,0,box_width,box_height), 2)
+            p1.set_alpha(255)
+            p2.set_alpha(80)
+            pygame.draw.rect(p1, Config.WHITE, (0,0,bw,bh), 2)
         else:
-            p1_surf.set_alpha(80)
-            p2_surf.set_alpha(255)
-            pygame.draw.rect(p2_surf, WHITE, (0,0,box_width,box_height), 2)
+            p1.set_alpha(80)
+            p2.set_alpha(255)
+            pygame.draw.rect(p2, Config.WHITE, (0,0,bw,bh), 2)
             
-        self.screen.blit(p1_surf, (start_x, start_y))
-        self.screen.blit(p2_surf, (start_x + box_width + margin, start_y))
+        self.screen.blit(p1, (bx, by))
+        self.screen.blit(p2, (bx + bw + 10, by))
+
+# ====================================================
+# 5. GameApp: アプリケーション本体 (監督)
+# ====================================================
+class GameApp:
+    def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
+        pygame.display.set_caption(Config.CAPTION)
+        self.clock = pygame.time.Clock()
+        
+        # 各マネージャー初期化
+        self.resource_manager = ResourceManager()
+        self.text_renderer = TextRenderer(self.resource_manager)
+        self.hardware = HardwareManager()
+        
+        # 初期シーン
+        self.current_scene = None
+        self.change_scene(Phase3Scene(self))
+        
+        self.running = True
+
+    def change_scene(self, new_scene):
+        if self.current_scene:
+            self.current_scene.on_exit()
+        self.current_scene = new_scene
+        if self.current_scene:
+            self.current_scene.on_enter()
 
     def run(self):
-        running = True
-        while running:
+        while self.running:
+            # デルタタイム計算 (秒単位)
+            dt = self.clock.tick(Config.FPS) / 1000.0
+            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running = False
-
-            ret, frame = self.cap.read()
-            if ret:
-                image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results = self.pose.process(image_rgb)
-                
-                if results.pose_landmarks:
-                    self.mp_drawing.draw_landmarks(
-                        image=frame,
-                        landmark_list=results.pose_landmarks,
-                        connections=self.mp_pose.POSE_CONNECTIONS,
-                        landmark_drawing_spec=self.drawing_spec_point,
-                        connection_drawing_spec=self.drawing_spec_line
-                    )
-
-                camera_surface = cvimage_to_pygame(frame)
-                camera_surface = pygame.transform.scale(camera_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
-                camera_surface = pygame.transform.flip(camera_surface, True, False)
-                self.screen.blit(camera_surface, (0, 0))
+                    self.running = False
+                # シーンごとのイベント処理があれば呼ぶ
+                if self.current_scene:
+                    self.current_scene.handle_event(event)
             
-            current_ticks = pygame.time.get_ticks()
-            total_elapsed = (current_ticks - self.start_ticks) / 1000.0
-
-            if total_elapsed < self.wait_duration:
-                self.dummy_surface.set_alpha(255)
-                self.screen.blit(self.dummy_surface, (0, 0))
-            elif total_elapsed < (self.wait_duration + self.anim_duration):
-                anim_elapsed = total_elapsed - self.wait_duration
-                progress = anim_elapsed / self.anim_duration
-                alpha = int(255 * (1.0 - progress))
-                self.dummy_surface.set_alpha(alpha)
-                scale = 1.0 - (progress * 0.8)
-                new_width = int(SCREEN_WIDTH * scale)
-                new_height = int(SCREEN_HEIGHT * scale)
-                scaled_surface = pygame.transform.scale(self.dummy_surface, (new_width, new_height))
-                target_x = -new_width * 0.5 
-                target_y = -new_height * 0.5
-                current_x = 0 + (target_x - 0) * progress
-                current_y = 0 + (target_y - 0) * progress
-                self.screen.blit(scaled_surface, (int(current_x), int(current_y)))
-
-            theme_display = self.font_mgr.render(f"おだい: {self.theme}", 24, WHITE)
-            theme_shadow = self.font_mgr.render(f"おだい: {self.theme}", 24, BLACK)
-            self.screen.blit(theme_shadow, (22, 22))
-            self.screen.blit(theme_display, (20, 20))
-
-            self.draw_turn_indicators()
-
-            # ★タイマー (Paintballで描画されます)
-            timer_text = self.font_mgr.render("5.00", 60, RED)
-            self.screen.blit(timer_text, (SCREEN_WIDTH//2 - 50, 50))
-
+            if self.current_scene:
+                self.current_scene.update(dt)
+                self.current_scene.draw()
+            
             pygame.display.flip()
-            self.clock.tick(FPS)
         
-        self.cap.release()
+        # 終了処理
+        if self.current_scene:
+            self.current_scene.on_exit()
+        self.hardware.release()
         pygame.quit()
         sys.exit()
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("ポーズ対戦ゲーム - Final Version")
-
-    # Phase 3
-    phase3 = Phase3Scene(screen)
-    selected_theme = phase3.run()
-
-    # Phase 4
-    if selected_theme:
-        phase4 = Phase4Scene(screen, selected_theme, player_turn=1)
-        phase4.run()
-
+# ====================================================
+# エントリーポイント
+# ====================================================
 if __name__ == "__main__":
-    main()
+    app = GameApp()
+    app.run()
