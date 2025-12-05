@@ -3,28 +3,33 @@ import pygame, sys, os, time
 pygame.init()
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Score Meter (Title with Shadow)")
+pygame.display.set_caption("Score Meter (Final Countdown)")
 clock = pygame.time.Clock()
 
 # --- フォント設定 ---
 # font_path1 = "IoEI.ttf" # タイトル用
-font_path2 = "Paintball_Beta_3.ttf" # スコア＆Winner用
-font_path1 = "Splatfont2.ttf" # タイトル用
-#font_path2 = "Splatfont2.ttf" # スコア＆Winner用
+font_path2 = "Paintball_Beta_3.ttf" # スコア＆Winner＆カウントダウン用
+font_path1 = "Splatfont2.ttf"
+
 try:
     score_font = pygame.font.Font(font_path2, 24)
     title_font = pygame.font.Font(font_path1, 80)
     winner_font = pygame.font.Font(font_path2, 80)
+    # --- 追加: カウントダウン用の特大フォント ---
+    countdown_font = pygame.font.Font(font_path2, 150)
     print(f"成功: フォント読み込み完了。")
 except FileNotFoundError as e:
     print(f"エラー: フォントファイルが見つかりません: {e}")
     score_font = pygame.font.SysFont("arial", 24, bold=True)
     title_font = pygame.font.SysFont("arial", 80, bold=True)
     winner_font = pygame.font.SysFont("arial", 80, bold=True)
+    countdown_font = pygame.font.SysFont("arial", 150, bold=True)
 except Exception as e:
     print(f"フォント読み込みエラー: {e}")
     score_font = pygame.font.SysFont(None, 24)
     title_font = pygame.font.SysFont(None, 80)
+    winner_font = pygame.font.SysFont(None, 80)
+    countdown_font = pygame.font.SysFont(None, 150)
 
 # 各回の上限値
 SEGMENT_LIMITS = [100.0, 100.0, 300.0]
@@ -48,10 +53,9 @@ TITLE_EASING = 0.12
 CHAR_DROP_DELAY = 0.15
 START_DELAY = 0.5
 
-# --- タイトルの色定義 ---
+# タイトルの色定義
 TITLE_COLOR_MAIN = pygame.Color("YELLOW")
 TITLE_COLOR_OUTLINE = pygame.Color(30, 80, 220)
-# 追加: 影の色
 TITLE_COLOR_SHADOW = pygame.Color("BLACK")
 
 title_chars = []
@@ -60,17 +64,14 @@ current_char_x = WIDTH // 2 - total_width // 2
 start_time_base = time.time() + START_DELAY
 
 for i, char in enumerate(TITLE_STR):
-    # メインの文字（黄色）
     main_surf = title_font.render(char, True, TITLE_COLOR_MAIN)
-    # 縁取り用の文字（青色）
     outline_surf = title_font.render(char, True, TITLE_COLOR_OUTLINE)
-    # 追加: 影用の文字（黒色）
     shadow_surf = title_font.render(char, True, TITLE_COLOR_SHADOW)
     
     title_chars.append({
         'main_surf': main_surf,
         'outline_surf': outline_surf,
-        'shadow_surf': shadow_surf, # 追加
+        'shadow_surf': shadow_surf,
         'tx': current_char_x,
         'cy': TITLE_START_Y,
         'start_time': start_time_base + i * CHAR_DROP_DELAY+0.1*i,
@@ -81,7 +82,7 @@ for i, char in enumerate(TITLE_STR):
 title_animation_done = False
 
 # --- Winner表示用の変数 ---
-WINNER_STR = "Winner1P"
+WINNER_STR = "Winner"
 winner_surf = winner_font.render(WINNER_STR, True, pygame.Color("YELLOW"))
 winner_shadow = winner_font.render(WINNER_STR, True, pygame.Color("BLACK"))
 winner_rect = winner_surf.get_rect(center=(WIDTH // 2 - 30, 480))
@@ -96,6 +97,13 @@ show_winner = False
 dot_count = 0
 dot_timer = 0
 DOT_INTERVAL = 500
+
+# --- 追加: カウントダウン用の変数 ---
+countdown_value = 3         # カウントダウンする数字
+countdown_timer = 0         # 時間管理用
+COUNTDOWN_INTERVAL = 1000   # 1秒間隔
+show_countdown = False      # カウントダウン表示フラグ
+all_animations_done = False # 全てのアニメーション完了フラグ
 
 
 def clamp_val(v, limit):
@@ -183,9 +191,8 @@ def draw_stacked_meter(x, y, w, h, segs, colors, border_color):
     # 文字色を WHITE に設定
     txt = score_font.render(f"{int(round(total))} / 500 ({pct}%)", True, pygame.Color("WHITE"))
     
-    # テキストの描画位置：バーの開始位置付近（少し右にずらす）に設定して重ねる
+    # テキストの描画位置
     text_x = x + 20
-    # 上下中央揃え
     text_y = y + h//2 - txt.get_height()//2
     
     # テキストの影（黒）を描画
@@ -241,30 +248,32 @@ while True:
             if current_ticks - dot_timer > DOT_INTERVAL:
                 dot_count += 1
                 dot_timer = current_ticks
+        
+        # --- 追加: ドットまで完了したらカウントダウンを開始 ---
+        if show_winner and dot_count == 3 and not all_animations_done:
+            all_animations_done = True
+            show_countdown = True
+            countdown_timer = current_ticks
+            countdown_value = 3 # カウントダウン開始の値
+
+    # --- 追加: カウントダウンの更新ロジック ---
+    if show_countdown and countdown_value >= 0:
+        if current_ticks - countdown_timer > COUNTDOWN_INTERVAL:
+            countdown_value -= 1
+            countdown_timer = current_ticks
 
     # 描画開始
     screen.fill((22,155,155))
 
-    # --- 変更点: タイトル各文字の描画（影＋縁取り＋メイン） ---
+    # --- タイトル各文字の描画 ---
     for char_data in title_chars:
         cx, cy = char_data['tx'], char_data['cy']
-        out_surf = char_data['outline_surf']
-        main_surf = char_data['main_surf']
-        shadow_surf = char_data['shadow_surf'] # 追加
-        
-        # 1. 影を描画（少し右下にずらす）
-        shadow_offset = 4
-        screen.blit(shadow_surf, (cx + shadow_offset, cy + shadow_offset))
-
-        # 2. 縁取り（上下左右にずらして描画）
-        offset = 3 # 縁取りの太さ
-        screen.blit(out_surf, (cx - offset, cy))
-        screen.blit(out_surf, (cx + offset, cy))
-        screen.blit(out_surf, (cx, cy - offset))
-        screen.blit(out_surf, (cx, cy + offset))
-        
-        # 3. メインの文字（中央に描画）
-        screen.blit(main_surf, (cx, cy))
+        screen.blit(char_data['shadow_surf'], (cx + 4, cy + 4))
+        screen.blit(char_data['outline_surf'], (cx - 3, cy))
+        screen.blit(char_data['outline_surf'], (cx + 3, cy))
+        screen.blit(char_data['outline_surf'], (cx, cy - 3))
+        screen.blit(char_data['outline_surf'], (cx, cy + 3))
+        screen.blit(char_data['main_surf'], (cx, cy))
     
     # --- メーターの描画 ---
     meter_width = 680
@@ -272,8 +281,8 @@ while True:
     draw_stacked_meter(100, 300, meter_width, 80, current_blue_segs, BLUE_COLS, pygame.Color("BLACK"))
 
     # アイコン描画
-    pygame.draw.circle(screen, (255,0,0), (45, 240), 40)
-    pygame.draw.circle(screen, (0,0,255), (45, 350), 40)
+    pygame.draw.circle(screen, RED_COLS[-1], (45, 240), 40)
+    pygame.draw.circle(screen, BLUE_COLS[-1], (45, 350), 40)
 
     # --- Winnerテキストとドットの描画 ---
     if show_winner:
@@ -287,15 +296,42 @@ while True:
             screen.blit(dot_shadow, (dot_x + 4, dot_y + 4))
             screen.blit(dot_surf, (dot_x, dot_y))
 
+    # --- 追加: カウントダウンの描画 ---
+    if show_countdown and countdown_value >= 0:
+        # 表示する文字列を作成（0なら"GO!"にするなども可能ですが、今は数字のまま）
+        count_str = str(countdown_value)
+        
+        # 黄色の文字と黒い影をレンダリング
+        count_surf = countdown_font.render(count_str, True, pygame.Color("YELLOW"))
+        count_shadow = countdown_font.render(count_str, True, pygame.Color("BLACK"))
+        
+        # 画面中央に配置
+        count_rect = count_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        
+        # 影と本体を描画
+        screen.blit(count_shadow, (count_rect.x + 5, count_rect.y + 5))
+        screen.blit(count_surf, count_rect)
+
+
     pygame.display.update()
 
     # イベント処理
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit(); sys.exit()
+            pygame.quit()
+            sys.exit()
         elif event.type == pygame.KEYDOWN:
+            # ESC で画面から離れる（アプリ終了）
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
+
+            # キー操作でリセット（カウントダウン関連もリセット）
             show_winner = False 
             dot_count = 0
+            all_animations_done = False
+            show_countdown = False
+
             change = 15.0 / 3.0
             if event.key == pygame.K_r:
                 target_red_segs = [clamp_val(v + change, SEGMENT_LIMITS[i]) for i, v in enumerate(target_red_segs)]
