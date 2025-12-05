@@ -473,36 +473,47 @@ class Phase3Scene(Scene):
 
 class Phase4Scene(Scene):
     """カメラ・骨格推定・撮影画面（超巨大カウントダウン版）"""
+
     def __init__(self, app, theme, player_turn=1):
         super().__init__(app)
         self.theme = theme
         self.player_turn = player_turn
-        
+
         # カメラ起動要求
         self.app.hardware.start_camera()
-        
+
         # アニメーション制御
         self.anim_timer = 0.0
         self.wait_duration = 1.0
         self.anim_duration = 2.0
-        
+
         # カウントダウン設定
         self.is_counting = False
         self.countdown_timer = Config.COUNTDOWN_SECONDS
-        
+
         # ★時間の進むスピード係数 (0.7倍速 = 1カウント約1.4秒)
         # 1.0より小さくするとゆっくりになり、溜めが生まれます
-        self.time_speed = 0.7 
-        
+        self.time_speed = 0.7
+
         # ダミー画面の作成
         self.dummy_surf = pygame.Surface((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         self.dummy_surf.fill(Config.DUMMY_BG)
-        
+
         t_theme = self.renderer.render(f"おだい: {self.theme}", 40, Config.WHITE)
-        self.dummy_surf.blit(t_theme, t_theme.get_rect(center=(Config.SCREEN_WIDTH//2, Config.SCREEN_HEIGHT//2 - 30)))
-        
+        self.dummy_surf.blit(
+            t_theme,
+            t_theme.get_rect(
+                center=(Config.SCREEN_WIDTH // 2, Config.SCREEN_HEIGHT // 2 - 30)
+            ),
+        )
+
         t_info = self.renderer.render("ここに カメラが うつります", 24, Config.GRAY)
-        self.dummy_surf.blit(t_info, t_info.get_rect(center=(Config.SCREEN_WIDTH//2, Config.SCREEN_HEIGHT//2 + 30)))
+        self.dummy_surf.blit(
+            t_info,
+            t_info.get_rect(
+                center=(Config.SCREEN_WIDTH // 2, Config.SCREEN_HEIGHT // 2 + 30)
+            ),
+        )
 
     def on_enter(self):
         if not self.app.hardware.start_camera():
@@ -519,12 +530,12 @@ class Phase4Scene(Scene):
             # 2. カウントダウン
             if not self.is_counting:
                 self.is_counting = True
-            
+
             if self.countdown_timer > 0:
                 # ★修正: 時間の進みを遅くして重厚感を出す
                 self.countdown_timer -= dt * self.time_speed
-                
-                if self.countdown_timer <= 0: 
+
+                if self.countdown_timer <= 0:
                     self.countdown_timer = 0
                     print("SHUTTER!")
                     # TODO: 撮影処理
@@ -535,7 +546,9 @@ class Phase4Scene(Scene):
         if ret:
             frame = self.app.hardware.process_pose(frame)
             cam_surf = Utils.cvimage_to_pygame(frame)
-            cam_surf = pygame.transform.scale(cam_surf, (Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
+            cam_surf = pygame.transform.scale(
+                cam_surf, (Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT)
+            )
             cam_surf = pygame.transform.flip(cam_surf, True, False)
             self.screen.blit(cam_surf, (0, 0))
 
@@ -546,14 +559,14 @@ class Phase4Scene(Scene):
             else:
                 progress = (self.anim_timer - self.wait_duration) / self.anim_duration
                 eased = Utils.ease_out_cubic(progress)
-                
+
                 self.dummy_surf.set_alpha(int(255 * (1.0 - eased)))
                 scale = 1.0 - (eased * 0.8)
-                
+
                 nw = int(Config.SCREEN_WIDTH * scale)
                 nh = int(Config.SCREEN_HEIGHT * scale)
                 scaled = pygame.transform.scale(self.dummy_surf, (nw, nh))
-                
+
                 tx = -nw * 0.5 * eased
                 ty = -nh * 0.5 * eased
                 self.screen.blit(scaled, (int(tx), int(ty)))
@@ -567,39 +580,39 @@ class Phase4Scene(Scene):
         t_shadow = self.renderer.render(f"おだい: {self.theme}", 24, Config.BLACK)
         self.screen.blit(t_shadow, (22, 22))
         self.screen.blit(t_theme, (20, 20))
-        
+
         # ターン表示
         self._draw_turn()
-        
+
         # ★修正: カウントダウン演出 (超巨大・ゆっくり)
         if self.is_counting and self.countdown_timer > 0:
             display_num = int(self.countdown_timer) + 1
-            
+
             # 進行度 (1.0 -> 0.0)
             progress = self.countdown_timer - int(self.countdown_timer)
-            
+
             # --- 演出計算 ---
             # 透明度: ゆっくり消える
-            alpha = int(255 * (progress ** 0.5))
-            
+            alpha = int(255 * (progress**0.5))
+
             # 拡大率: 1.0倍 -> 1.8倍まで迫ってくる
             scale = 1.0 + (1.0 - progress) * 0.8
-            
+
             # ★サイズ変更: 画面いっぱい (500px)
             base_size = 500
-            
+
             # 数字を描画 (Paintballフォント)
             t_timer = self.renderer.render(str(display_num), base_size, Config.RED)
-            
+
             # 拡大縮小
             new_w = int(t_timer.get_width() * scale)
             new_h = int(t_timer.get_height() * scale)
-            
+
             # 処理落ち防止のため、あまりに巨大すぎる場合は制限をかける
             if new_w < Config.SCREEN_WIDTH * 3:
                 t_timer_scaled = pygame.transform.smoothscale(t_timer, (new_w, new_h))
                 t_timer_scaled.set_alpha(alpha)
-                
+
                 # 画面中央に配置
                 cx = (Config.SCREEN_WIDTH - new_w) // 2
                 cy = (Config.SCREEN_HEIGHT - new_h) // 2
@@ -608,29 +621,28 @@ class Phase4Scene(Scene):
     def _draw_turn(self):
         bx, by = 20, 65
         bw, bh = 80, 35
-        
+
         p1 = pygame.Surface((bw, bh))
         p1.fill(Config.RED)
         t1 = self.renderer.render("せんこう", 20, Config.WHITE)
-        p1.blit(t1, t1.get_rect(center=(bw//2, bh//2)))
-        
+        p1.blit(t1, t1.get_rect(center=(bw // 2, bh // 2)))
+
         p2 = pygame.Surface((bw, bh))
         p2.fill(Config.BLUE)
         t2 = self.renderer.render("こうこう", 20, Config.WHITE)
-        p2.blit(t2, t2.get_rect(center=(bw//2, bh//2)))
-        
+        p2.blit(t2, t2.get_rect(center=(bw // 2, bh // 2)))
+
         if self.player_turn == 1:
             p1.set_alpha(255)
             p2.set_alpha(80)
-            pygame.draw.rect(p1, Config.WHITE, (0,0,bw,bh), 2)
+            pygame.draw.rect(p1, Config.WHITE, (0, 0, bw, bh), 2)
         else:
             p1.set_alpha(80)
             p2.set_alpha(255)
-            pygame.draw.rect(p2, Config.WHITE, (0,0,bw,bh), 2)
-            
+            pygame.draw.rect(p2, Config.WHITE, (0, 0, bw, bh), 2)
+
         self.screen.blit(p1, (bx, by))
         self.screen.blit(p2, (bx + bw + 10, by))
-
 
 
 # ====================================================
