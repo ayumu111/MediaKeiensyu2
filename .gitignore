@@ -13,4 +13,5 @@ predicted_scores.csv
 /images_single_fullbody/
 game.py
 scores.txt
-
+/images_crop/
+/my_dir/
