@@ -144,5 +144,5 @@ else:
 
 
 # モデル保存
-model.save('Unique_score_model_final.keras')
+model.save('unique_score_model_final.keras')
 print("モデルを保存しました: unique_score_model_final.keras")

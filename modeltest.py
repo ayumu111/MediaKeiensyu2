@@ -13,7 +13,10 @@ IMAGE_HEIGHT = 128
 IMAGE_WIDTH = 128
 
 # 保存したモデルのパス
-MODEL_PATH = 'model\\unique_score_model_final.keras'
+MODEL_PATH = 'model\dynamicscore_model_final.keras'
+#MODEL_PATH = 'model\stablescore_model_final.keras'
+#MODEL_PATH = 'model\uniquecscore_model_final.keras'
+
 
 # 予測したい画像のパス (テストしたい画像のパスに変えてください)
 TARGET_IMAGE_PATH = "test/2011tokyo_mister_fp-011-320x480.jpg"
