@@ -1,6 +1,6 @@
 テスト用のフォルダgame_testと、本番用のgame_realを作りました！
 構造とか、中身のファイル名、フォルダ名は全く一緒なのでテスト用でうまくいったらそのままコピペしてくれたらOKのはず！！！
-main.pyとか他のシーンごとのファイルは
+game_main.pyとか他のシーンごとのファイルは
 
 
 ～構造～
@@ -14,7 +14,7 @@ main.pyとか他のシーンごとのファイルは
         ・title_scene_class.py
         ・ex_game_scene_class.py                ←例（本番は使わない）
         ・ex_result_scene_class.py              ←例（本番は使わない）
-    ・main.py                                   ←ここにちょっと書き加える
+    ・game_main.py                                   ←ここにちょっと書き加える
 
 
 
