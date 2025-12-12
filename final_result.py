@@ -41,7 +41,7 @@ target_red_segs = [80.0, 90.0, 150.0]
 target_blue_segs = [50.0, 50.0, 100.0]
 
 ANIM_SPEED = 180.0
-SCORES_FILE = "scores.txt"
+SCORES_FILE = "finalscores.txt"
 READ_INTERVAL = 0.5
 _last_read = 0.0
 
@@ -143,7 +143,7 @@ def try_read_scores_file():
                 r.append(clamp_val(val, SEGMENT_LIMITS[i]))
             target_red_segs = r
     except Exception as e:
-        print("scores.txt parse error:", e)
+        print("finalscores.txt parse error:", e)
 
 def step_toward_list(curr_list, target_list, dt):
     out = []
