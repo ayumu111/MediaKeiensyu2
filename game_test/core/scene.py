@@ -1,5 +1,3 @@
-
-# core/scene.py
 import pygame
 
 class Scene:
@@ -24,4 +22,7 @@ class Scene:
         self.quit_requested = True
 
     def request_next(self, scene_name: str):
+        ##次のシーン名に移るときの関数
+        ##()に次のシーン名（文字列）を入れる
+        ##次のシーン名はgame_main.pyを参照
         self.next_scene_name = scene_name
