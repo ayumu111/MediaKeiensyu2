@@ -343,8 +343,8 @@ class ResultAnimation:
 # main
 #==============================================
 def main():
-    anim = ResultAnimation(first_player_win=True)   # ←1P勝利
-    # anim = ResultAnimation(first_player_win=False)  # ←2P勝利
+    # anim = ResultAnimation(first_player_win=True)   # ←1P勝利
+    anim = ResultAnimation(first_player_win=False)  # ←2P勝利
     anim.run()
 
 
