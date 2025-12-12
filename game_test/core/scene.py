@@ -25,4 +25,5 @@ class Scene:
         ##次のシーン名に移るときの関数
         ##()に次のシーン名（文字列）を入れる
         ##次のシーン名はgame_main.pyを参照
+        ##次のシーン名が分からないうちはex_gameって入れてくれると動きます！
         self.next_scene_name = scene_name
