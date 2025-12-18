@@ -4,6 +4,7 @@ from scenes.title_scene_class import TitleScene
 from scenes.ex_game_scene_class import ExGameScene      ##例（本番は使わない）
 from scenes.ex_result_scene_class import ExResultScene  ##例（本番は使わない）
 ##ここに自分のクラス名とファイル名を追加してください！
+from scenes.score_screen import ScoreScene
 
 
 
@@ -18,6 +19,8 @@ def create_scene(name: str):
         return ExGameScene()
     elif name == "ex_result":      ##例（本番は使わない）
         return ExResultScene()
+    elif name == "score":  
+        return ScoreScene()
     else:
         raise ValueError(f"Unknown scene name: {name}")
 

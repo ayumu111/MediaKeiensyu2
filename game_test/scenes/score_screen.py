@@ -4,7 +4,7 @@ import os
 # あなたのSceneクラス定義があるファイルをインポート
 # もしSceneクラスが common.py にあるなら from common import Scene など
 # ここでは便宜上、上記のSceneクラスを継承する前提で書きます
-from scene import Scene  # ※Sceneクラスが定義されているファイル名に合わせて変更してください
+from core.scene import Scene  # ※Sceneクラスが定義されているファイル名に合わせて変更してください
 
 class ScoreScene(Scene):
     def __init__(self):
@@ -33,13 +33,31 @@ class ScoreScene(Scene):
         self.reset_state()
 
     def load_fonts(self):
+        # ★ここが修正ポイント★
+        # このファイル (score_screen.py) があるフォルダのパスを取得
+        current_dir = os.path.dirname(__file__)
+
+        # フォルダパスとファイル名を結合して、絶対パスを作る
+        # これでどこから実行しても正しく読み込めます
+        path_main = os.path.join(current_dir, "Paintball_Beta_3.ttf")
+        path_title = os.path.join(current_dir, "Splatfont2.ttf")
+
         try:
-            self.score_font = pygame.font.Font(self.font_path_main, 24)
-            self.title_font = pygame.font.Font(self.font_path_title, 80)
-            self.winner_font = pygame.font.Font(self.font_path_main, 80)
-            self.countdown_font = pygame.font.Font(self.font_path_main, 150)
-        except:
-            print("フォント読み込み失敗。デフォルトフォントを使用します。")
+            # 作成したパス (path_main, path_title) を使う
+            self.score_font = pygame.font.Font(path_main, 24)
+            self.title_font = pygame.font.Font(path_title, 80)
+            self.winner_font = pygame.font.Font(path_main, 80)
+            self.countdown_font = pygame.font.Font(path_main, 150)
+            print("フォント読み込み成功！")
+        except FileNotFoundError:
+            print(f"フォントが見つかりません: {path_main}")
+            # エラー時のフォールバック
+            self.score_font = pygame.font.SysFont(None, 24)
+            self.title_font = pygame.font.SysFont(None, 80)
+            self.winner_font = pygame.font.SysFont(None, 80)
+            self.countdown_font = pygame.font.SysFont(None, 150)
+        except Exception as e:
+            print(f"フォント読み込みエラー: {e}")
             self.score_font = pygame.font.SysFont(None, 24)
             self.title_font = pygame.font.SysFont(None, 80)
             self.winner_font = pygame.font.SysFont(None, 80)
@@ -202,10 +220,10 @@ class ScoreScene(Scene):
                 self.countdown_timer = current_ticks
         
         # 6. シーン遷移
+        # 6. シーン遷移
         if self.show_countdown and self.countdown_val < 0:
-            # カウントダウンが終わったら次のゲームへ
-            # 引数には次に移りたいシーン名(文字列)を入れてください
-            self.request_next("game_main") 
+            # カウントダウンが終わったらタイトル画面へ戻る
+            self.request_next("title") # <--- game_main.py に登録されている名前にする
 
     def draw(self, surface):
         """描画処理"""
