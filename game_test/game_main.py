@@ -6,6 +6,10 @@ from scenes.ex_result_scene_class import ExResultScene  ##例（本番は使わ�
 ##ここに自分のクラス名とファイル名を追加してください！
 from scenes.score_screen import ScoreScene
 
+from scenes.howto_scene_class import HowToScene #工藤
+from scenes.roulette_scene_class import RouletteScene #工藤
+from scenes.camera_scene_class import CameraScene #工藤
+
 
 
 def create_scene(name: str):        
@@ -15,12 +19,25 @@ def create_scene(name: str):
     """名前→シーンの生成（Factory）"""
     if name == "title":
         return TitleScene()
-    elif name == "ex_game":        ##例（本番は使わない）
-        return ExGameScene()
-    elif name == "ex_result":      ##例（本番は使わない）
-        return ExResultScene()
-    elif name == "score":  
+
+    # 工藤が追加
+    elif name == "howto":
+        return HowToScene()
+    elif name == "roulette":
+        return RouletteScene()
+    elif name == "camera":
+        return CameraScene()
+    
+
+    elif name == "score":
         return ScoreScene()
+
+    # 例（本番は使わない）
+    elif name == "ex_game":
+        return ExGameScene()
+    elif name == "ex_result":
+        return ExResultScene()
+
     else:
         raise ValueError(f"Unknown scene name: {name}")
 
