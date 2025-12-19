@@ -33,9 +33,10 @@ class Config:
 
     # パス設定 (絶対パス)
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    PATH_FONT_IOEI = os.path.join(BASE_DIR, "IoEI.ttf")
-    PATH_FONT_PAINTBALL = os.path.join(BASE_DIR, "Paintball_Beta_3.ttf")
-    PATH_IMG_BOMB = os.path.join(BASE_DIR, "bakudan-white.jpg")
+    HARUKI_ASSET_DIR = os.path.join(BASE_DIR, "..", "haruki's program")
+    PATH_FONT_IOEI = os.path.join(BASE_DIR, "font", "IoEI.ttf")
+    PATH_FONT_PAINTBALL = os.path.join(BASE_DIR, "font", "Paintball_Beta_3.ttf")
+    PATH_IMG_BOMB = os.path.join(HARUKI_ASSET_DIR, "bakudan-white.JPG")
     PATH_SHUTTER_DIR = os.path.join(BASE_DIR, "shuttered")
 
     # 色定義
@@ -76,9 +77,9 @@ class Config:
     # ==================================================
     # 以下はチュートリアル版（Phase2）にあったレイアウト設定
     # ==================================================
-    PATH_IMG_BOMB_GRAY = os.path.join(BASE_DIR, "bakudan-gray.jpg")
-    PATH_CHAR_RED = os.path.join(BASE_DIR, "char_red.jpg")
-    PATH_CHAR_BLUE = os.path.join(BASE_DIR, "char_blue.jpg")
+    PATH_IMG_BOMB_GRAY = os.path.join(HARUKI_ASSET_DIR, "bakudan-gray.JPG")
+    PATH_CHAR_RED = os.path.join(HARUKI_ASSET_DIR, "char_red.jpg")
+    PATH_CHAR_BLUE = os.path.join(HARUKI_ASSET_DIR, "char_blue.jpg")
 
     CREAM = (255, 250, 220)
     FUSE_BROWN = (80, 60, 40)

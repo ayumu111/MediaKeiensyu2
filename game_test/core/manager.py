@@ -9,6 +9,8 @@ class SceneManager:
         """
         self.current_scene = initial_scene
         self.scene_factory = scene_factory
+        if hasattr(self.current_scene, "on_enter"):
+            self.current_scene.on_enter()
 
     def switch_if_needed(self):
         """シーン側が next_scene_name をセットしていたら切替"""
@@ -17,7 +19,11 @@ class SceneManager:
 
         if self.current_scene.next_scene_name:
             next_name = self.current_scene.next_scene_name
+            if hasattr(self.current_scene, "on_exit"):
+                self.current_scene.on_exit()
             self.current_scene = self.scene_factory(next_name)
+            if hasattr(self.current_scene, "on_enter"):
+                self.current_scene.on_enter()
         return True
 
     def run_frame(self, surface, dt):
