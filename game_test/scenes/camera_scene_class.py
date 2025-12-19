@@ -186,7 +186,20 @@ class CameraScene(Scene):
         filename = datetime.now().strftime("shutter_%Y%m%d_%H%M%S_%f.jpg")
         save_path = os.path.join(Config.PATH_SHUTTER_DIR, filename)
 
-        ok = cv2.imwrite(save_path, self.latest_frame)
+        ok = False
+        try:
+            # Use imencode to support non-ASCII paths on Windows
+            ext = os.path.splitext(save_path)[1] or ".jpg"
+            enc_ok, buf = cv2.imencode(ext, self.latest_frame)
+            if enc_ok:
+                buf.tofile(save_path)
+                ok = True
+        except Exception as e:
+            print(f"Failed to save shutter frame via imencode: {e}")
+
+        if not ok:
+            ok = cv2.imwrite(save_path, self.latest_frame)
+
         if ok:
             print(f"Saved shutter frame: {save_path}")
         else:
