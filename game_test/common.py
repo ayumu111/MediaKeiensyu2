@@ -32,11 +32,18 @@ class Config:
     CAPTION = "Pose Battle Game - Refactored"
 
     # パス設定 (絶対パス)
+<<<<<<< HEAD
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     HARUKI_ASSET_DIR = os.path.join(BASE_DIR, "..", "haruki's program")
     PATH_FONT_IOEI = os.path.join(BASE_DIR, "font", "IoEI.ttf")
     PATH_FONT_PAINTBALL = os.path.join(BASE_DIR, "font", "Paintball_Beta_3.ttf")
     PATH_IMG_BOMB = os.path.join(HARUKI_ASSET_DIR, "bakudan-white.JPG")
+=======
+    BASE_DIR =  os.path.dirname(__file__)
+    PATH_FONT_IOEI = os.path.join(BASE_DIR, "font/IoEI.ttf")
+    PATH_FONT_PAINTBALL = os.path.join(BASE_DIR, "font/Paintball_Beta_3.ttf")
+    PATH_IMG_BOMB = os.path.join(BASE_DIR, "bakudan-white.jpg")
+>>>>>>> main
     PATH_SHUTTER_DIR = os.path.join(BASE_DIR, "shuttered")
 
     # 色定義
