@@ -1,5 +1,5 @@
 # scenes/howto_scene_class.py
-import numpy as np
+import math
 import pygame
 from core.scene import Scene
 
@@ -44,20 +44,21 @@ class HowToScene(Scene):
         self.sim_shutter_y = 0
         self.sim_arm_angle = 0.0
 
-    def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            self.index += 1
-            self.char_y_offset = -15
+    def handle_events(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.index += 1
+                self.char_y_offset = -15
 
-            # 最後まで進んだら次のシーンへ
-            if self.index >= len(self.dialogues):
-                # core側のScene実装に合わせて、次シーン要求の出し方を変えてください。
-                # よくある実装: self.request_next("roulette") / self.next_scene = "roulette"
-                if hasattr(self, "request_next"):
-                    self.request_next("roulette")
-                else:
-                    self.next_scene = "roulette"
-                self.index = len(self.dialogues) - 1  # 画面崩れ防止
+                # 最後まで進んだら次のシーンへ
+                if self.index >= len(self.dialogues):
+                    # core側のScene実装に合わせて、次シーン要求の出し方を変えてください。
+                    # よくある実装: self.request_next("roulette") / self.next_scene = "roulette"
+                    if hasattr(self, "request_next"):
+                        self.request_next("roulette")
+                    else:
+                        self.next_scene = "roulette"
+                    self.index = len(self.dialogues) - 1  # 画面崩れ防止
 
     def update(self, dt):
         # ちょいジャンプ演出
@@ -98,7 +99,7 @@ class HowToScene(Scene):
         # 2) ミニカメラ
         if self.sim_cam_state == 0:
             self.sim_countdown_val -= dt
-            self.sim_arm_angle = np.sin(self.sim_time * 5) * 30
+            self.sim_arm_angle = math.sin(self.sim_time * 5) * 30
             if self.sim_countdown_val <= 0:
                 self.sim_cam_state = 1
                 self.sim_cam_timer = 0.0
@@ -126,7 +127,8 @@ class HowToScene(Scene):
                 self.sim_countdown_val = 3.0
                 self.sim_shutter_y = 0
 
-    def draw(self):
+    def draw(self, surface):
+        self.screen = surface
         self.screen.fill(Config.CREAM)
 
         footer_h = Config.PHASE2_FOOTER_HEIGHT

@@ -3,7 +3,7 @@ import random
 import pygame
 from core.scene import Scene
 
-from game_test.core.common import Config, game_state
+from common import Config, game_state
 
 
 class RouletteScene(Scene):
@@ -19,6 +19,16 @@ class RouletteScene(Scene):
         self.final_theme = ""
         self.spin_duration = random.uniform(Config.ROULETTE_SPIN_MIN, Config.ROULETTE_SPIN_MAX)
 
+        self.fuse_timer = 0.0
+        self.expl_timer = 0.0
+
+    def on_enter(self):
+        self.state = 0
+        self.scroll_pos = 0.0
+        self.current_speed = 2500.0
+        self.elapsed_spin = 0.0
+        self.final_theme = ""
+        self.spin_duration = random.uniform(Config.ROULETTE_SPIN_MIN, Config.ROULETTE_SPIN_MAX)
         self.fuse_timer = 0.0
         self.expl_timer = 0.0
 
@@ -42,8 +52,11 @@ class RouletteScene(Scene):
                 if abs(diff) < 1.0:
                     self.scroll_pos = target_pos
                     self.state = 2
-                    center_idx = int(self.scroll_pos / h)
-                    self.final_theme = Config.THEMES[center_idx % len(Config.THEMES)]
+                    if Config.THEMES:
+                        center_idx = int(self.scroll_pos / h)
+                        self.final_theme = Config.THEMES[center_idx % len(Config.THEMES)]
+                    else:
+                        self.final_theme = "（おだい未設定）"
                     game_state.theme = self.final_theme
 
         elif self.state == 2:
@@ -60,7 +73,8 @@ class RouletteScene(Scene):
                 else:
                     self.next_scene = "camera"
 
-    def draw(self):
+    def draw(self, surface):
+        self.screen = surface
         self.screen.fill(Config.WHITE)
 
         msg = "おだいを きめています..."

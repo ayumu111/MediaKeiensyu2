@@ -1,7 +1,10 @@
 import pygame
 
 class Scene:
-    def __init__(self):
+    def __init__(self, app=None):
+        self.app = app
+        self.screen = app.screen if app else None
+        self.renderer = app.text_renderer if app else None
         # 次に遷移したいシーン名（文字列）を入れる。Noneなら継続。
         self.next_scene_name = None
         self.quit_requested = False

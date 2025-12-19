@@ -5,7 +5,7 @@ from datetime import datetime
 import pygame
 from core.scene import Scene
 
-from game_test.core.common import Config, Utils, game_state
+from common import Config, Utils, game_state
 
 
 class CameraScene(Scene):
@@ -27,6 +27,9 @@ class CameraScene(Scene):
         self.countdown_timer = Config.COUNTDOWN_SECONDS
 
         self.time_speed = 0.7
+        self.after_shutter = False
+        self.after_shutter_timer = 0.0
+        self.after_shutter_delay = 0.5
 
         self.dummy_surf = pygame.Surface((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         self.dummy_surf.fill(Config.DUMMY_BG)
@@ -44,12 +47,34 @@ class CameraScene(Scene):
         )
 
     def on_enter(self):
+        # 再入場用リセット
+        self.anim_timer = 0.0
+        self.is_counting = False
+        self.countdown_timer = Config.COUNTDOWN_SECONDS
+        self.latest_frame = None
+        self.after_shutter = False
+        self.after_shutter_timer = 0.0
+        self.dummy_surf.set_alpha(255)
+
         self.camera_ready = self.app.hardware.start_camera()
         if not self.camera_ready:
             print("Failed to start camera.")
 
+    def on_exit(self):
+        if hasattr(self.app.hardware, "release"):
+            self.app.hardware.release()
+
     def update(self, dt):
         if not self.camera_ready:
+            return
+
+        if self.after_shutter:
+            self.after_shutter_timer += dt
+            if self.after_shutter_timer >= self.after_shutter_delay:
+                if hasattr(self, "request_next"):
+                    self.request_next("score")
+                else:
+                    self.next_scene = "score"
             return
 
         if self.anim_timer < (self.wait_duration + self.anim_duration):
@@ -66,7 +91,10 @@ class CameraScene(Scene):
                     print("SHUTTER!")
                     self._capture_shutter()
 
-    def draw(self):
+    def draw(self, surface):
+        self.screen = surface
+        self.dummy_surf.set_alpha(255)
+
         # 1) カメラ映像
         if self.camera_ready:
             ret, frame = self.app.hardware.read_frame()
@@ -163,6 +191,8 @@ class CameraScene(Scene):
             print(f"Saved shutter frame: {save_path}")
         else:
             print(f"Failed to save shutter frame: {save_path}")
+
+        self.after_shutter = True
 
     def _draw_turn(self):
         bx, by = 20, 65

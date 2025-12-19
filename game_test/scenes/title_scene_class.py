@@ -157,7 +157,7 @@ class TitleScene(Scene):
         for e in events:
             if e.type == pygame.KEYDOWN and e.key == pygame.K_SPACE:
                 ##次のシーン名が決まったら、"ex_game" の部分を書き換えてください！！！
-                self.request_next("ex_game")
+                self.request_next("howto")
 
     def update(self, dt):
         pass
