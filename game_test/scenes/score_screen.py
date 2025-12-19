@@ -175,7 +175,7 @@ class ScoreScene(Scene):
             if event.type == pygame.KEYDOWN:
                 # デバッグ用: スペースキーで強制スキップ
                 if event.key == pygame.K_SPACE:
-                    self.request_next("game_main") # ←次のシーン名を指定
+                    self.request_next("round_result") # ←次のシーン名を指定
 
     def update(self, dt):
         """更新処理 (dtは秒単位)"""
@@ -234,7 +234,7 @@ class ScoreScene(Scene):
         # 6. シーン遷移
         if self.show_countdown and self.countdown_val < 0:
             # カウントダウンが終わったらタイトル画面へ戻る
-            self.request_next("title") # <--- game_main.py に登録されている名前にする
+            self.request_next("round_result") # <--- game_main.py に登録されている名前にする
 
     def draw(self, surface):
         """描画処理"""
