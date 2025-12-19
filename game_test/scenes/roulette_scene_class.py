@@ -3,7 +3,7 @@ import random
 import pygame
 from core.scene import Scene
 
-from common import Config, game_state
+from game_test.core.common import Config, game_state
 
 
 class RouletteScene(Scene):
