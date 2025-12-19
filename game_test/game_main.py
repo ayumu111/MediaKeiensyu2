@@ -6,6 +6,8 @@ from scenes.ex_result_scene_class import ExResultScene  ##例（本番は使わ�
 ##ここに自分のクラス名とファイル名を追加してください！
 from scenes.score_screen import ScoreScene
 
+from scenes.round_result_scene_class import RoundResultScene
+
 # from scenes.howto_scene_class import HowToScene #工藤
 # from scenes.roulette_scene_class import RouletteScene #工藤
 # from scenes.camera_scene_class import CameraScene #工藤
