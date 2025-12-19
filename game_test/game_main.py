@@ -11,6 +11,9 @@ from scenes.howto_scene_class import HowToScene
 from scenes.roulette_scene_class import RouletteScene
 from scenes.camera_scene_class import CameraScene
 
+from scenes.round_result_scene_class import RoundResultScene
+from scenes.final_result_scene_class import FinalResultScene
+
 
 def create_scene_factory(app):
     def create_scene(name: str):
@@ -31,6 +34,12 @@ def create_scene_factory(app):
 
         elif name == "score":
             return ScoreScene()
+        
+        # 川島が追加
+        elif name == "round_result":
+            return RoundResultScene()
+        elif name == "final_result":
+            return FinalResultScene()
 
         # 例（本番は使わない）
         elif name == "ex_game":
