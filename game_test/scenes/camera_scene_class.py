@@ -5,7 +5,7 @@ from datetime import datetime
 import pygame
 from core.scene import Scene
 
-from common import Config, Utils, game_state
+from game_test.core.common import Config, Utils, game_state
 
 
 class CameraScene(Scene):
