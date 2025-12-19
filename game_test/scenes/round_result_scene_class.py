@@ -29,8 +29,8 @@ class RoundResultScene(Scene):
         # フォント
         # =========================
         cur = os.path.dirname(__file__)
-        main = os.path.join(cur, "Paintball_Beta_3.ttf")
-        title = os.path.join(cur, "IoEI.ttf")
+        main = os.path.join(cur, "../font/Paintball_Beta_3.ttf")
+        title = os.path.join(cur, "../font/IoEI.ttf")
 
         self.font_title = pygame.font.Font(title, 80)
         self.font_players = pygame.font.Font(main, 50)
@@ -64,6 +64,8 @@ class RoundResultScene(Scene):
         # 描画準備
         # =========================
         self.prepare_assets()
+
+        self.saved = False
 
     # ==================================================
     # 入力
@@ -132,6 +134,28 @@ class RoundResultScene(Scene):
             for side in self.bottom.values():
                 if side["total_now"] < side["total_target"]:
                     side["total_now"] += 1
+        
+        # ★ ここで1回だけ保存
+        if not self.saved:
+            self.append_score("1Pscores.txt", self.total_1)
+            self.append_score("2Pscores.txt", self.total_2)
+            self.saved = True
+    
+    def append_score(self, filename, score):
+        ##score をカンマ区切りで追記保存
+        if os.path.exists(filename):
+            with open(filename, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+            if text:
+                text += f",{score}"
+            else:
+                text = str(score)
+        else:
+            text = str(score)
+
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(text)
+
 
     # ==================================================
     # 描画
