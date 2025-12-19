@@ -7,6 +7,7 @@ from scenes.ex_result_scene_class import ExResultScene  ##例（本番は使わ�
 from scenes.score_screen import ScoreScene
 
 from scenes.round_result_scene_class import RoundResultScene
+from scenes.final_result_scene_class import FinalResultScene
 
 # from scenes.howto_scene_class import HowToScene #工藤
 # from scenes.roulette_scene_class import RouletteScene #工藤
@@ -36,6 +37,9 @@ def create_scene(name: str):
     
     elif name == "round_result":
         return RoundResultScene()
+    
+    elif name == "final_result":
+        return FinalResultScene()
 
     # 例（本番は使わない）
     elif name == "ex_game":

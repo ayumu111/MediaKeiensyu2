@@ -178,8 +178,20 @@ class ResultAnimation:
         pygame.draw.circle(tmp, color, center, outer_r)
         pygame.draw.circle(tmp, (0, 0, 0, 0), center, inner_r)
         surface.blit(tmp, (0, 0))
+    
+    # def load_total_score(filename):
+    #     if not os.path.exists(filename):
+    #         print(f"{filename} が見つかりません")
+    #         return 0
 
-
+    #     total = 0
+    #     with open(filename, "r", encoding="utf-8") as f:
+    #         for line in f:
+    #             line = line.strip()
+    #             if line.isdigit():
+    #                 total += int(line)
+    #     return total
+    
     #====================================
     # メイン実行
     #====================================
@@ -338,14 +350,38 @@ class ResultAnimation:
         sys.exit()
 
 
+def load_total_score(filename):
+    if not os.path.exists(filename):
+        print(f"{filename} が見つかりません")
+        return 0
+
+    total = 0
+    with open(filename, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line.isdigit():
+                total += int(line)
+    return total
+
 
 #==============================================
 # main
 #==============================================
 def main():
-    # anim = ResultAnimation(first_player_win=True)   # ←1P勝利
-    anim = ResultAnimation(first_player_win=False)  # ←2P勝利
+    score_1p = load_total_score("1Pscores.txt")
+    score_2p = load_total_score("2Pscores.txt")
+
+    print("1P score:", score_1p)
+    print("2P score:", score_2p)
+
+    if score_1p > score_2p:
+        first_player_win = True
+    else:
+        first_player_win = False   # 同点の場合は2P勝利扱い（必要なら変更可）
+
+    anim = ResultAnimation(first_player_win=first_player_win)
     anim.run()
+
 
 
 if __name__ == "__main__":

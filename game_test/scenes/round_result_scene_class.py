@@ -76,7 +76,7 @@ class RoundResultScene(Scene):
                 if e.key == pygame.K_SPACE:
                     self.request_next("score")
                 elif e.key == pygame.K_ESCAPE:
-                    self.request_next("title")
+                    self.request_next("final_result")
 
     # ==================================================
     # 更新
