@@ -10,12 +10,23 @@ class ScoreScene(Scene):
     def __init__(self):
         super().__init__() # 親クラス(Scene)の初期化
         
+        # ▼ 修正前：これだと scenes フォルダの中を見てしまう
+        # BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        
+        # ▼ 修正後：os.path.dirname を2回使って、1つ上の階層(game_test)を取得する
+        file_path = os.path.abspath(__file__)     # .../game_test/scenes/score_scene.py
+        scene_dir = os.path.dirname(file_path)    # .../game_test/scenes
+        BASE_DIR = os.path.dirname(scene_dir)     # .../game_test  <-- ここが欲しい！
+
         # --- 設定 ---
         self.WIDTH, self.HEIGHT = 800, 600
         self.SEGMENT_LIMITS = [100.0, 100.0, 300.0]
         self.ANIM_SPEED = 180.0
-        self.SCORES_FILE = "finalscores.txt" # または "scores.txt"
+        
+        # これで game_test/finalscores.txt を指すようになります
+        self.SCORES_FILE = os.path.join(BASE_DIR, "finalscores.txt")
         self.READ_INTERVAL = 0.5
+        
         
         # フォント設定 (適宜パスを合わせてください)
         self.font_path_title = "Splatfont2.ttf"
@@ -39,8 +50,8 @@ class ScoreScene(Scene):
 
         # フォルダパスとファイル名を結合して、絶対パスを作る
         # これでどこから実行しても正しく読み込めます
-        path_main = os.path.join(current_dir, "Paintball_Beta_3.ttf")
-        path_title = os.path.join(current_dir, "Splatfont2.ttf")
+        path_main = os.path.join(current_dir, "../font/Paintball_Beta_3.ttf")
+        path_title = os.path.join(current_dir, "../font/Splatfont2.ttf")
 
         try:
             # 作成したパス (path_main, path_title) を使う

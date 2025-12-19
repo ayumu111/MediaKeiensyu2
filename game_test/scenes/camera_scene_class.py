@@ -1,22 +1,21 @@
+# scenes/camera_scene_class.py
 import os
 from datetime import datetime
 
 import pygame
-
 from core.scene import Scene
-from core.manager import Config, Utils  # ←実態に合わせて修正
+
+from game_test.core.common import Config, Utils, game_state
 
 
 class CameraScene(Scene):
-    """
-    カメラ・骨格推定・撮影（元: game1.py の Phase4Scene）
-    前段の RouletteScene が app.shared["theme"] に入れている前提。
-    """
-    SCENE_NAME = "camera"
+    """Phase4: カメラ・骨格推定・撮影"""
 
     def __init__(self, app):
         super().__init__(app)
-        self.theme = ""
+        self.theme = game_state.theme or "（おだい未設定）"
+        self.player_turn = game_state.player_turn
+
         self.latest_frame = None
         self.camera_ready = False
 
@@ -26,40 +25,28 @@ class CameraScene(Scene):
 
         self.is_counting = False
         self.countdown_timer = Config.COUNTDOWN_SECONDS
+
         self.time_speed = 0.7
 
         self.dummy_surf = pygame.Surface((Config.SCREEN_WIDTH, Config.SCREEN_HEIGHT))
         self.dummy_surf.fill(Config.DUMMY_BG)
 
-        self._next_scene = None
-
-    def on_enter(self):
-        # theme 受け取り
-        if hasattr(self.app, "shared") and "theme" in self.app.shared:
-            self.theme = self.app.shared["theme"]
-        else:
-            self.theme = "（未設定）"
-
-        # dummyに theme を焼く
-        self.dummy_surf.fill(Config.DUMMY_BG)
-        t_theme = self.app.text_renderer.render(f"おだい: {self.theme}", 40, Config.WHITE)
+        t_theme = self.renderer.render(f"おだい: {self.theme}", 40, Config.WHITE)
         self.dummy_surf.blit(
             t_theme,
             t_theme.get_rect(center=(Config.SCREEN_WIDTH // 2, Config.SCREEN_HEIGHT // 2 - 30)),
         )
-        t_info = self.app.text_renderer.render("ここに カメラが うつります", 24, Config.GRAY)
+
+        t_info = self.renderer.render("ここに カメラが うつります", 24, Config.GRAY)
         self.dummy_surf.blit(
             t_info,
             t_info.get_rect(center=(Config.SCREEN_WIDTH // 2, Config.SCREEN_HEIGHT // 2 + 30)),
         )
 
-        # camera start（HardwareManagerが app.hardware としてある前提）
+    def on_enter(self):
         self.camera_ready = self.app.hardware.start_camera()
         if not self.camera_ready:
             print("Failed to start camera.")
-
-    def request_next(self):
-        return self._next_scene
 
     def update(self, dt):
         if not self.camera_ready:
@@ -67,20 +54,20 @@ class CameraScene(Scene):
 
         if self.anim_timer < (self.wait_duration + self.anim_duration):
             self.anim_timer += dt
-            return
+        else:
+            if not self.is_counting:
+                self.is_counting = True
 
-        if not self.is_counting:
-            self.is_counting = True
+            if self.countdown_timer > 0:
+                self.countdown_timer -= dt * self.time_speed
 
-        if self.countdown_timer > 0:
-            self.countdown_timer -= dt * self.time_speed
-            if self.countdown_timer <= 0:
-                self.countdown_timer = 0
-                self._capture_shutter()
-                # 撮影後の遷移（次が未確定なら仮名で）
-                self._next_scene = "ex_result"  # ←本番の次シーン名が決まったら差し替え
+                if self.countdown_timer <= 0:
+                    self.countdown_timer = 0
+                    print("SHUTTER!")
+                    self._capture_shutter()
 
     def draw(self):
+        # 1) カメラ映像
         if self.camera_ready:
             ret, frame = self.app.hardware.read_frame()
         else:
@@ -97,7 +84,7 @@ class CameraScene(Scene):
         else:
             self.screen.blit(self.dummy_surf, (0, 0))
 
-        # 蓋アニメーション
+        # 2) 蓋アニメ
         if self.anim_timer < (self.wait_duration + self.anim_duration):
             if self.anim_timer < self.wait_duration:
                 self.screen.blit(self.dummy_surf, (0, 0))
@@ -114,28 +101,32 @@ class CameraScene(Scene):
                 ty = -nh * 0.5 * eased
                 self.screen.blit(scaled, (int(tx), int(ty)))
 
+        # 3) UI
         self._draw_ui()
 
     def _draw_ui(self):
-        t_theme = self.app.text_renderer.render(f"おだい: {self.theme}", 24, Config.WHITE)
-        t_shadow = self.app.text_renderer.render(f"おだい: {self.theme}", 24, Config.BLACK)
+        t_theme = self.renderer.render(f"おだい: {self.theme}", 24, Config.WHITE)
+        t_shadow = self.renderer.render(f"おだい: {self.theme}", 24, Config.BLACK)
         self.screen.blit(t_shadow, (22, 22))
         self.screen.blit(t_theme, (20, 20))
 
+        self._draw_turn()
+
         if not self.camera_ready:
-            msg = self.app.text_renderer.render("カメラが見つかりません。接続を確認してください。", 24, Config.RED)
-            shadow = self.app.text_renderer.render("カメラが見つかりません。接続を確認してください。", 24, Config.BLACK)
+            msg = self.renderer.render("カメラが見つかりません。接続を確認してください。", 24, Config.RED)
+            shadow = self.renderer.render("カメラが見つかりません。接続を確認してください。", 24, Config.BLACK)
             self.screen.blit(shadow, (22, Config.SCREEN_HEIGHT - 62))
             self.screen.blit(msg, (20, Config.SCREEN_HEIGHT - 64))
 
         if self.is_counting and self.countdown_timer > 0:
             display_num = int(self.countdown_timer) + 1
             progress = self.countdown_timer - int(self.countdown_timer)
+
             alpha = int(255 * (progress**0.5))
             scale = 1.0 + (1.0 - progress) * 0.8
             base_size = 500
 
-            t_timer = self.app.text_renderer.render(str(display_num), base_size, Config.RED)
+            t_timer = self.renderer.render(str(display_num), base_size, Config.RED)
             new_w = int(t_timer.get_width() * scale)
             new_h = int(t_timer.get_height() * scale)
 
@@ -147,13 +138,54 @@ class CameraScene(Scene):
                 self.screen.blit(t_timer_scaled, (cx, cy))
 
     def _capture_shutter(self):
-        if not self.camera_ready or self.latest_frame is None:
+        if not self.camera_ready:
+            print("Camera not ready, skip shutter.")
+            return
+        if self.latest_frame is None:
+            print("No frame available to save.")
             return
         cv2 = self.app.hardware.cv2
         if not cv2:
+            print("OpenCV not available, cannot save frame.")
             return
 
-        os.makedirs(Config.PATH_SHUTTER_DIR, exist_ok=True)
+        try:
+            os.makedirs(Config.PATH_SHUTTER_DIR, exist_ok=True)
+        except OSError as e:
+            print(f"Failed to create directory '{Config.PATH_SHUTTER_DIR}': {e}")
+            return
+
         filename = datetime.now().strftime("shutter_%Y%m%d_%H%M%S_%f.jpg")
         save_path = os.path.join(Config.PATH_SHUTTER_DIR, filename)
-        cv2.imwrite(save_path, self.latest_frame)
+
+        ok = cv2.imwrite(save_path, self.latest_frame)
+        if ok:
+            print(f"Saved shutter frame: {save_path}")
+        else:
+            print(f"Failed to save shutter frame: {save_path}")
+
+    def _draw_turn(self):
+        bx, by = 20, 65
+        bw, bh = 80, 35
+
+        p1 = pygame.Surface((bw, bh))
+        p1.fill(Config.RED)
+        t1 = self.renderer.render("せんこう", 20, Config.WHITE)
+        p1.blit(t1, t1.get_rect(center=(bw // 2, bh // 2)))
+
+        p2 = pygame.Surface((bw, bh))
+        p2.fill(Config.BLUE)
+        t2 = self.renderer.render("こうこう", 20, Config.WHITE)
+        p2.blit(t2, t2.get_rect(center=(bw // 2, bh // 2)))
+
+        if self.player_turn == 1:
+            p1.set_alpha(255)
+            p2.set_alpha(80)
+            pygame.draw.rect(p1, Config.WHITE, (0, 0, bw, bh), 2)
+        else:
+            p1.set_alpha(80)
+            p2.set_alpha(255)
+            pygame.draw.rect(p2, Config.WHITE, (0, 0, bw, bh), 2)
+
+        self.screen.blit(p1, (bx, by))
+        self.screen.blit(p2, (bx + bw + 10, by))

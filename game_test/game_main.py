@@ -10,8 +10,6 @@ from scenes.score_screen import ScoreScene
 # from scenes.roulette_scene_class import RouletteScene #工藤
 # from scenes.camera_scene_class import CameraScene #工藤
 
-from scenes.round_result_scene_class import RoundResultScene
-
 
 
 def create_scene(name: str):        
