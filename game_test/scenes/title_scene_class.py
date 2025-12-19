@@ -11,8 +11,8 @@ class TitleScene(Scene):
     # ---------------------------------------
     # 定数まとめ
     # ---------------------------------------
-    SCREEN_WIDTH = 600
-    SCREEN_HEIGHT = 400
+    SCREEN_WIDTH = 800
+    SCREEN_HEIGHT = 600
     FPS = 60
 
     CUSTOM_FONT_PATH = "title/Paintball_Beta_3.ttf"
