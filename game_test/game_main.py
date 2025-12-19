@@ -43,7 +43,7 @@ def create_scene(name: str):
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((600, 400))
+    screen = pygame.display.set_mode((800, 600))
     clock = pygame.time.Clock()
 
     manager = SceneManager(initial_scene=TitleScene(), scene_factory=create_scene)
