@@ -1,17 +1,13 @@
+# scenes/roulette_scene_class.py
 import random
 import pygame
-
 from core.scene import Scene
-from core.manager import Config  # ←実態に合わせて修正
+
+from common import Config, game_state
 
 
 class RouletteScene(Scene):
-    """
-    お題決定ルーレット（元: game1.py の Phase3Scene）
-    次シーン: "camera" へ theme を渡す必要があるため、app 側に共有領域を置く想定。
-    例: app.shared["theme"] = final_theme
-    """
-    SCENE_NAME = "roulette"
+    """Phase3: お題決定ルーレット"""
 
     def __init__(self, app):
         super().__init__(app)
@@ -25,11 +21,6 @@ class RouletteScene(Scene):
 
         self.fuse_timer = 0.0
         self.expl_timer = 0.0
-
-        self._next_scene = None
-
-    def request_next(self):
-        return self._next_scene
 
     def update(self, dt):
         if self.state == 0:
@@ -53,10 +44,7 @@ class RouletteScene(Scene):
                     self.state = 2
                     center_idx = int(self.scroll_pos / h)
                     self.final_theme = Config.THEMES[center_idx % len(Config.THEMES)]
-                    # 次へ渡す（app 側に shared dict がある想定）
-                    if not hasattr(self.app, "shared"):
-                        self.app.shared = {}
-                    self.app.shared["theme"] = self.final_theme
+                    game_state.theme = self.final_theme
 
         elif self.state == 2:
             self.fuse_timer += dt
@@ -66,7 +54,11 @@ class RouletteScene(Scene):
         elif self.state == 3:
             self.expl_timer += dt
             if self.expl_timer > 0.5:
-                self._next_scene = "camera"
+                # 次は撮影シーンへ
+                if hasattr(self, "request_next"):
+                    self.request_next("camera")
+                else:
+                    self.next_scene = "camera"
 
     def draw(self):
         self.screen.fill(Config.WHITE)
@@ -78,11 +70,12 @@ class RouletteScene(Scene):
         elif self.state == 3:
             msg = "さつえい かいし！"
 
-        t_surf = self.app.text_renderer.render(msg, 30, Config.BLACK)
+        t_surf = self.renderer.render(msg, 30, Config.BLACK)
         self.screen.blit(t_surf, (50, 30))
 
         self._draw_roulette()
         self._draw_fuse()
+
         if self.state == 3:
             self._draw_explosion()
 
@@ -116,10 +109,20 @@ class RouletteScene(Scene):
             r = pygame.Rect((Config.SCREEN_WIDTH - box_w) // 2, pos_y, box_w, box_h)
             pygame.draw.rect(self.screen, color, r, border_radius=10)
 
-            ts = self.app.text_renderer.render(text, 60, Config.WHITE)
-            self.screen.blit(ts, ts.get_rect(center=r.center))
+            ts = self.renderer.render(text, 60, Config.WHITE)
+            tr = ts.get_rect(center=r.center)
+            self.screen.blit(ts, tr)
 
         self.screen.set_clip(None)
+
+        hl_rect = pygame.Rect(
+            (Config.SCREEN_WIDTH - box_w) // 2 - 5,
+            center_y - box_h // 2 - 5,
+            box_w + 10,
+            box_h + 10,
+        )
+        border_col = Config.RED if (self.state >= 2 and int(pygame.time.get_ticks() / 100) % 2 == 0) else Config.YELLOW
+        pygame.draw.rect(self.screen, border_col, hl_rect, 5, border_radius=15)
 
     def _draw_fuse(self):
         progress = (
@@ -130,11 +133,14 @@ class RouletteScene(Scene):
 
         sx, ex, y = 100, 680, 80
 
-        bomb = getattr(self.app.resource_manager, "bomb_img", None)
+        bomb = self.app.resource_manager.bomb_img
         if bomb:
             self.screen.blit(bomb, (ex - 10, y - 20))
         else:
             pygame.draw.rect(self.screen, Config.RED, (ex, y - 15, 30, 60))
+
+        lbl = self.renderer.render("さつえい かいし！", 24, Config.RED)
+        self.screen.blit(lbl, lbl.get_rect(center=(ex + 50, y + 90)))
 
         curr_x = sx + (ex - sx) * progress
         if curr_x < ex:
