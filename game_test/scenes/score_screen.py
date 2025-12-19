@@ -50,8 +50,8 @@ class ScoreScene(Scene):
 
         # フォルダパスとファイル名を結合して、絶対パスを作る
         # これでどこから実行しても正しく読み込めます
-        path_main = os.path.join(current_dir, "Paintball_Beta_3.ttf")
-        path_title = os.path.join(current_dir, "Splatfont2.ttf")
+        path_main = os.path.join(current_dir, "../font/Paintball_Beta_3.ttf")
+        path_title = os.path.join(current_dir, "../font/Splatfont2.ttf")
 
         try:
             # 作成したパス (path_main, path_title) を使う
