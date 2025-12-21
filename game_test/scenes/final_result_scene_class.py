@@ -19,25 +19,23 @@ class FinalResultScene(Scene):
             with open(filename, "r", encoding="utf-8") as f:
                 for line in f:
                     for part in line.strip().split(","):
-                        part = part.strip()
-                        if part.isdigit():
+                        if part.strip().isdigit():
                             total += int(part)
             return total
-        
-        # ==============================
-        # スコア消去
-        # ==============================
+
         def clear_score_file(filename):
             with open(filename, "w", encoding="utf-8") as f:
                 f.write("")
 
         score_1p = load_total_score("1Pscores.txt")
         score_2p = load_total_score("2Pscores.txt")
-        self.FIRST_PLAYER_WIN = score_1p > score_2p
 
         clear_score_file("1Pscores.txt")
         clear_score_file("2Pscores.txt")
-        
+
+        self.IS_DRAW = (score_1p == score_2p)
+        self.FIRST_PLAYER_WIN = score_1p > score_2p
+
         # ==============================
         # 画面
         # ==============================
@@ -45,7 +43,13 @@ class FinalResultScene(Scene):
         self.HEIGHT = 600
         self.CENTER = (400, 300)
 
-        if self.FIRST_PLAYER_WIN:
+        self.DRAW_COLOR = (160, 80, 200)
+
+        if self.IS_DRAW:
+            self.BACKGROUND_COLOR = self.DRAW_COLOR
+            self.IMAGE_FILENAME = None
+            self.TEXT_STR = "DRAW"
+        elif self.FIRST_PLAYER_WIN:
             self.BACKGROUND_COLOR = (255, 80, 80)
             self.IMAGE_FILENAME = "img1.png"
             self.TEXT_STR = "WINER 1P!"
@@ -55,7 +59,7 @@ class FinalResultScene(Scene):
             self.TEXT_STR = "WINER 2P!"
 
         # ==============================
-        # パラメータ
+        # パラメータ（元完全一致）
         # ==============================
         self.initial_width = 4
         self.expand_speed = 900
@@ -76,7 +80,7 @@ class FinalResultScene(Scene):
         self.TEXT_SPEED_FAST = 2200
         self.TEXT_SPEED_SLOW = 60
         self.TEXT_SLOW_RADIUS = self.WIDTH * 0.12
-        self.TEXT_START_Y = self.HEIGHT * 0.68
+        self.TEXT_START_Y = self.HEIGHT * 0.5 if self.IS_DRAW else self.HEIGHT * 0.68
 
         self.SHADOW_OFFSET = (6, 6)
         self.SHADOW_ALPHA = 120
@@ -86,14 +90,16 @@ class FinalResultScene(Scene):
         ]
 
         # ==============================
-        # 画像
+        # 画像（勝利時のみ）
         # ==============================
-        photo = pygame.image.load(self.IMAGE_FILENAME).convert_alpha()
-        r = min(self.WIDTH*0.45/photo.get_width(), self.HEIGHT*0.65/photo.get_height())
-        self.photo = pygame.transform.smoothscale(
-            photo,
-            (int(photo.get_width()*r), int(photo.get_height()*r))
-        )
+        self.photo = None
+        if self.IMAGE_FILENAME:
+            photo = pygame.image.load(self.IMAGE_FILENAME).convert_alpha()
+            r = min(self.WIDTH*0.45/photo.get_width(), self.HEIGHT*0.65/photo.get_height())
+            self.photo = pygame.transform.smoothscale(
+                photo,
+                (int(photo.get_width()*r), int(photo.get_height()*r))
+            )
 
         # ==============================
         # フォント
@@ -159,9 +165,9 @@ class FinalResultScene(Scene):
         self.phase = 1
         self.phase_start = time.time()
 
-        self.photo_x = -self.photo.get_width()
-        self.photo_y = self.CENTER[1]
+        self.photo_x = -self.photo.get_width() if self.photo else 0
         self.rotation_angle = 0.0
+
         self.current_width = self.initial_width
         self.current_angle = 0.0
 
@@ -169,7 +175,7 @@ class FinalResultScene(Scene):
         self.text_fixed = False
 
     # ==============================
-    # ★ ドーナツ描画（←これが抜けていた）
+    # ドーナツ描画
     # ==============================
     def draw_donut(self, surface, inner, outer, alpha):
         tmp = pygame.Surface((self.WIDTH, self.HEIGHT), pygame.SRCALPHA)
@@ -178,12 +184,13 @@ class FinalResultScene(Scene):
         surface.blit(tmp, (0,0))
 
     # ==============================
-    # update（そのまま）
+    # update
     # ==============================
     def update(self, dt):
         now = time.time()
         elapsed = now - self.phase_start
 
+        # Phase1：白線回転拡大
         if self.phase == 1:
             if elapsed < self.pause_time:
                 self.current_width = self.initial_width
@@ -195,16 +202,28 @@ class FinalResultScene(Scene):
                 self.phase = 2
                 self.phase_start = now
 
+        # Phase2：白 → 背景色フェード
         elif self.phase == 2:
             if elapsed >= self.FADE_DURATION:
                 self.phase = 3
                 self.phase_start = now
 
+        # Phase3
         elif self.phase == 3:
-            self.rotation_angle = self.rotation_speed_fast * elapsed
-            move_ratio = min(elapsed / (360 / self.rotation_speed_fast), 1.0)
-            self.photo_x = (-self.photo.get_width())*(1-move_ratio) + self.CENTER[0]*move_ratio
-            if move_ratio >= 1.0:
+            if not self.IS_DRAW:
+                self.rotation_angle = self.rotation_speed_fast * elapsed
+                move_ratio = min(elapsed / (360 / self.rotation_speed_fast), 1.0)
+                self.photo_x = (-self.photo.get_width())*(1-move_ratio) + self.CENTER[0]*move_ratio
+
+                if move_ratio >= 1.0:
+                    self.donut1.start()
+                    self.text_active = True
+                    self.text_fixed = False
+                    self.text_x = -self.text_w
+                    self.phase = 4
+                    self.phase_start = now
+            else:
+                # DRAW：画像移動なし、即テキスト演出へ
                 self.donut1.start()
                 self.text_active = True
                 self.text_fixed = False
@@ -212,8 +231,10 @@ class FinalResultScene(Scene):
                 self.phase = 4
                 self.phase_start = now
 
+        # Phase4
         elif self.phase == 4:
             self.rotation_angle += self.rotation_speed_slow * dt
+
             alive1 = self.donut1.update()
             if not alive1 and not self.donut2_started:
                 self.donut2.start()
@@ -222,9 +243,14 @@ class FinalResultScene(Scene):
 
             if not self.text_fixed:
                 dist = self.center_target_x - self.text_x
-                speed = self.TEXT_SPEED_FAST if abs(dist) > self.TEXT_SLOW_RADIUS else self.TEXT_SPEED_SLOW
+                speed = (
+                    self.TEXT_SPEED_FAST
+                    if abs(dist) > self.TEXT_SLOW_RADIUS
+                    else self.TEXT_SPEED_SLOW
+                )
                 self.text_x += self.move_dx * speed * dt
                 self.text_y += self.move_dy * speed * dt
+
                 if self.text_x >= self.center_target_x:
                     self.text_x = self.center_target_x
                     self.text_fixed = True
@@ -233,12 +259,13 @@ class FinalResultScene(Scene):
                 self.phase = 5
                 self.phase_start = now
 
+        # Phase5
         elif self.phase == 5:
             if elapsed > 2.0:
                 self.request_next("title")
 
     # ==============================
-    # draw（前半演出含む）
+    # draw
     # ==============================
     def draw(self, surface):
 
@@ -252,31 +279,42 @@ class FinalResultScene(Scene):
             surface.blit(rot, rot.get_rect(center=self.CENTER))
             return
 
-        # Phase2：白 → 勝者色フェード
+        # Phase2：フェード
         if self.phase == 2:
             a = min((time.time()-self.phase_start)/self.FADE_DURATION, 1.0)
-            col = tuple(
-                int(255*(1-a) + c*a) for c in self.BACKGROUND_COLOR
-            )
+            col = tuple(int(255*(1-a) + c*a) for c in self.BACKGROUND_COLOR)
             surface.fill(col)
             return
 
-        # Phase3以降
         surface.fill(self.BACKGROUND_COLOR)
 
-        if self.phase >= 4:
+        # DRAW演出
+        if self.IS_DRAW:
             if self.donut1.active:
-                self.draw_donut(surface, self.donut1.inner, self.donut1.outer, 230)
+                self.draw_donut(surface, self.donut1.inner, self.donut1.outer, 200)
             if self.donut2.active:
-                self.draw_donut(surface, self.donut2.inner, self.donut2.outer, 230)
+                self.draw_donut(surface, self.donut2.inner, self.donut2.outer, 200)
 
-        rotated = pygame.transform.rotate(self.photo, self.rotation_angle)
-        rect = rotated.get_rect(center=(self.photo_x, self.CENTER[1]))
-        surface.blit(rotated, rect)
-
-        if self.text_active:
             surface.blit(self.shadow_surface,
                 (self.text_x+self.SHADOW_OFFSET[0], self.text_y+self.SHADOW_OFFSET[1]))
-            for s, ox, oy in self.outlines:
-                surface.blit(s, (self.text_x+ox, self.text_y+oy))
             surface.blit(self.text_surface, (self.text_x, self.text_y))
+
+
+        # 勝利演出（元完全再現）
+        else:
+            if self.phase >= 4:
+                if self.donut1.active:
+                    self.draw_donut(surface, self.donut1.inner, self.donut1.outer, 230)
+                if self.donut2.active:
+                    self.draw_donut(surface, self.donut2.inner, self.donut2.outer, 230)
+
+            rotated = pygame.transform.rotate(self.photo, self.rotation_angle)
+            rect = rotated.get_rect(center=(self.photo_x, self.CENTER[1]))
+            surface.blit(rotated, rect)
+
+            if self.text_active:
+                surface.blit(self.shadow_surface,
+                    (self.text_x+self.SHADOW_OFFSET[0], self.text_y+self.SHADOW_OFFSET[1]))
+                for s, ox, oy in self.outlines:
+                    surface.blit(s, (self.text_x+ox, self.text_y+oy))
+                surface.blit(self.text_surface, (self.text_x, self.text_y))
