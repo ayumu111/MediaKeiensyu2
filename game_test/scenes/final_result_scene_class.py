@@ -23,11 +23,21 @@ class FinalResultScene(Scene):
                         if part.isdigit():
                             total += int(part)
             return total
+        
+        # ==============================
+        # スコア消去
+        # ==============================
+        def clear_score_file(filename):
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("")
 
         score_1p = load_total_score("1Pscores.txt")
         score_2p = load_total_score("2Pscores.txt")
         self.FIRST_PLAYER_WIN = score_1p > score_2p
 
+        clear_score_file("1Pscores.txt")
+        clear_score_file("2Pscores.txt")
+        
         # ==============================
         # 画面
         # ==============================
