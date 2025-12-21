@@ -1,9 +1,0 @@
-/datasets/
-/images/
-/images_crop/
-/images_single_fullbody/
-/model/
-main.py
-scores.txt
-yolo11n-pose.pt
-/game_test/finalscores.txt
