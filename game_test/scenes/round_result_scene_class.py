@@ -11,6 +11,15 @@ class RoundResultScene(Scene):
         super().__init__()
 
         # =========================
+        # パス設定（★追加）
+        # =========================
+        cur = os.path.dirname(__file__)          # scenes/
+        game_root = os.path.abspath(os.path.join(cur, ".."))  # game_test/
+        self.game_root = game_root
+        
+        score_path = os.path.join(game_root, score_file)
+
+        # =========================
         # 画面サイズ
         # =========================
         self.W, self.H = 800, 600
@@ -41,7 +50,7 @@ class RoundResultScene(Scene):
         # =========================
         # スコア
         # =========================
-        self.load_scores(score_file)
+        self.load_scores(score_path)
 
         # =========================
         # STEP 管理（元コード完全一致）
@@ -137,8 +146,10 @@ class RoundResultScene(Scene):
         
         # ★ ここで1回だけ保存
         if not self.saved:
-            self.append_score("1Pscores.txt", self.total_1)
-            self.append_score("2Pscores.txt", self.total_2)
+            p1_path = os.path.join(self.game_root, "1Pscores.txt")
+            p2_path = os.path.join(self.game_root, "2Pscores.txt")
+            self.append_score(p1_path, self.total_1)
+            self.append_score(p2_path, self.total_2)
             self.saved = True
     
     def append_score(self, filename, score):
