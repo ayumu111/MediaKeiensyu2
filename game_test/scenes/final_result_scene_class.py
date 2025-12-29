@@ -18,11 +18,11 @@ def get_result_image_path(first_player_win: bool):
     # ★ scenes/ の1つ上 = game_test/
     game_root = os.path.abspath(os.path.join(base_dir, ".."))
 
-    # ★ outputs_estimated フォルダ
-    image_dir = os.path.join(game_root, "outputs_estimated")
+    # ★ pose_examples フォルダ
+    image_dir = os.path.join(game_root, "pose_examples")
 
     if not os.path.exists(image_dir):
-        print("[WARN] outputs_estimated not found:", image_dir)
+        print("[WARN] pose_examples not found:", image_dir)
         return None
 
     image_files = [
@@ -49,6 +49,12 @@ class FinalResultScene(Scene):
         super().__init__()
 
         # ==============================
+        # パス設定
+        # ==============================
+        base_dir = os.path.dirname(__file__)          # scenes/
+        game_root = os.path.abspath(os.path.join(base_dir, ".."))  # game_test/
+
+        # ==============================
         # スコア読み込み
         # ==============================
         def load_total_score(filename):
@@ -65,12 +71,15 @@ class FinalResultScene(Scene):
         def clear_score_file(filename):
             with open(filename, "w", encoding="utf-8") as f:
                 f.write("")
+        
+        score_1p_path = os.path.join(game_root, "1Pscores.txt")
+        score_2p_path = os.path.join(game_root, "2Pscores.txt")
 
-        score_1p = load_total_score("1Pscores.txt")
-        score_2p = load_total_score("2Pscores.txt")
+        score_1p = load_total_score(score_1p_path)
+        score_2p = load_total_score(score_2p_path)
 
-        clear_score_file("1Pscores.txt")
-        clear_score_file("2Pscores.txt")
+        clear_score_file(score_1p_path)
+        clear_score_file(score_2p_path)
 
         self.IS_DRAW = (score_1p == score_2p)
         self.FIRST_PLAYER_WIN = score_1p > score_2p
