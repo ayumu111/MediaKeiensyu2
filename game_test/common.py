@@ -38,7 +38,7 @@ class Config:
     PATH_FONT_IOEI = os.path.join(BASE_DIR, "font", "IoEI.ttf")
     PATH_FONT_PAINTBALL = os.path.join(BASE_DIR, "font", "Paintball_Beta_3.ttf")
     PATH_IMG_BOMB = os.path.join(HARUKI_ASSET_DIR, "bakudan-white.JPG")
-    PATH_SHUTTER_DIR = os.path.join(BASE_DIR, "shuttered")
+    PATH_SHUTTER_DIR = os.path.join(BASE_DIR, "pose_examples")
 
     # 色定義
     WHITE = (255, 255, 255)

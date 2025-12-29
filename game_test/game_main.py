@@ -1,3 +1,4 @@
+import os
 import pygame
 from core.manager import SceneManager
 from scenes.title_scene_class import TitleScene
@@ -45,10 +46,11 @@ def create_scene_factory(app):
             #save_dir  = Path("game_test/output")          # 書き込み可能なフォルダに合わせる
             #next_scene_name = "title"
             
+            base_dir = os.path.dirname(__file__)
             image_list = [
                         ##ここに画像ファイルを追加してください！->下のif文で最新の撮影画像も追加されます
-                        "pose_examples/pose_example.jpg",
-                        "pose_examples/pose_example2.jpg"
+                        os.path.join(base_dir, "pose_examples", "pose_example.jpg"),
+                        os.path.join(base_dir, "pose_examples", "pose_example2.jpg")
                     ]
 
             if game_state.last_shutter_path: # 最新の撮影画像を追加
