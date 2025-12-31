@@ -131,7 +131,7 @@ class PoseEstimationScene(Scene):
             elif e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_ESCAPE:
                     # 任意の次シーン名に遷移（game_main.py の登録に合わせる）
-                    self.request_next("ex_game")
+                    self.request_next("score_calculation")
                 # ★ 画像の切替（←/→ または A/D）
                 elif e.key in (pygame.K_LEFT, pygame.K_a):
                     self._move_index(-1)

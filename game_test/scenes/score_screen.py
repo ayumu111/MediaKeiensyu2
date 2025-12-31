@@ -175,7 +175,7 @@ class ScoreScene(Scene):
             if event.type == pygame.KEYDOWN:
                 # デバッグ用: スペースキーで強制スキップ
                 if event.key == pygame.K_SPACE:
-                    self.request_next("round_result") # ←次のシーン名を指定
+                    self.request_next("camera") # ←次のシーン名を指定
 
     def update(self, dt):
         """更新処理 (dtは秒単位)"""

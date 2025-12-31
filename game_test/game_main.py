@@ -14,6 +14,8 @@ from scenes.camera_scene_class import CameraScene
 
 from scenes.round_result_scene_class import RoundResultScene
 from scenes.final_result_scene_class import FinalResultScene
+from scenes.score_calculation_scene import ScoreCalculationScene
+
 
 
 def create_scene_factory(app):
@@ -56,7 +58,10 @@ def create_scene_factory(app):
 
             return PoseEstimationScene(app, image_paths=image_list, on_black=True, save_dir="game_test/outputs_estimated")
         
-        # モデルを使って得点を計算するファイルが必要？
+        # 天野が追加
+        # 得点計算シーン
+        elif name == "score_calculation":
+            return ScoreCalculationScene()
 
         # 得点中間発表 
         elif name == "score":
