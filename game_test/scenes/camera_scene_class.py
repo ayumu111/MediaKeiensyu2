@@ -61,6 +61,9 @@ class CameraScene(Scene):
         )
 
     def on_enter(self):
+        # ★追加: ラウンド開始時は必ずプレイヤー1(先行)から始めるようにリセット
+        game_state.player_turn = 1
+        
         # 再入場用リセット
         self.anim_timer = 0.0
         self.is_counting = False

@@ -11,16 +11,17 @@ class RoundResultScene(Scene):
         super().__init__()
 
         # =========================
-        # パス設定（★追加）
+        # パス設定
         # =========================
-        cur = os.path.dirname(__file__)          # scenes/
-        game_root = os.path.abspath(os.path.join(cur, ".."))  # game_test/
+        cur = os.path.dirname(__file__)
+        game_root = os.path.abspath(os.path.join(cur, ".."))
         self.game_root = game_root
         
         score_path = os.path.join(game_root, score_file)
 
         # =========================
-        # 画面サイズ
+        # ★ここが抜けている、または位置が間違っています！
+        # 画面サイズ (prepare_assets より前に書く必要があります)
         # =========================
         self.W, self.H = 800, 600
 
@@ -53,7 +54,7 @@ class RoundResultScene(Scene):
         self.load_scores(score_path)
 
         # =========================
-        # STEP 管理（元コード完全一致）
+        # STEP 管理
         # =========================
         self.STEP_BG = 0
         self.STEP_TITLE = 1
@@ -72,13 +73,11 @@ class RoundResultScene(Scene):
         # =========================
         # 描画準備
         # =========================
+        # ★ここで self.W と self.H を使うため、これより上で定義が必要です
         self.prepare_assets()
 
-        self.saved = False
+    # （中略：handle_events はそのまま）
 
-    # ==================================================
-    # 入力
-    # ==================================================
     def handle_events(self, events):
         for e in events:
             if e.type == pygame.KEYDOWN:
@@ -115,7 +114,6 @@ class RoundResultScene(Scene):
             if doneL and doneR:
                 self.step = self.STEP_SCORE_LABELS
 
-
         elif self.step == self.STEP_SCORE_LABELS:
             done = True
             for side in self.bottom.values():
@@ -143,30 +141,7 @@ class RoundResultScene(Scene):
             for side in self.bottom.values():
                 if side["total_now"] < side["total_target"]:
                     side["total_now"] += 1
-        
-        # ★ ここで1回だけ保存
-        if not self.saved:
-            p1_path = os.path.join(self.game_root, "1Pscores.txt")
-            p2_path = os.path.join(self.game_root, "2Pscores.txt")
-            self.append_score(p1_path, self.total_1)
-            self.append_score(p2_path, self.total_2)
-            self.saved = True
     
-    def append_score(self, filename, score):
-        ##score をカンマ区切りで追記保存
-        if os.path.exists(filename):
-            with open(filename, "r", encoding="utf-8") as f:
-                text = f.read().strip()
-            if text:
-                text += f",{score}"
-            else:
-                text = str(score)
-        else:
-            text = str(score)
-
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(text)
-
 
     # ==================================================
     # 描画

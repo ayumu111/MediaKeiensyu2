@@ -3,6 +3,7 @@ import sys
 import os
 import math
 import random
+import glob  # ▼▼▼ 追加: フォルダ内のファイル検索用 ▼▼▼
 from core.scene import Scene
 
 
@@ -53,8 +54,6 @@ class TitleScene(Scene):
         print("[WARN] font load failed, using default")
         return pygame.font.Font(None, size)
 
-  
-
     def load_scaled_image(self, path, max_w=None, max_h=None):
         img = pygame.image.load(path).convert_alpha()
         if max_w is None and max_h is None:
@@ -69,10 +68,6 @@ class TitleScene(Scene):
             img = pygame.transform.smoothscale(
                 img, (int(w * scale), int(h * scale)))
         return img
-
-
-        
-    
 
     def blit_fade(self, surface, img, pos, start_ms, now_ms, fade_ms):
         if now_ms < start_ms:
@@ -94,13 +89,63 @@ class TitleScene(Scene):
         surface.blit(shadow_r, shadow_rect)
         surface.blit(render, rect)
 
-    
+    # ---------------------------------------
+    # ▼▼▼ データリセット機能 (新規追加) ▼▼▼
+    # ---------------------------------------
+    def reset_game_data(self):
+        """
+        起動時(タイトル画面表示時)にスコアファイルと
+        推定画像フォルダの中身をリセットする
+        """
+        print("=== ゲームデータを初期化します ===")
+        
+        # 基準ディレクトリ (game_testフォルダを想定)
+        # scenesフォルダにある場合、2つ上がルート
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        # 1. スコアファイルの初期化 (空にする)
+        files_to_reset = ["1Pscores.txt", "2Pscores.txt", "scores.txt"]
+        
+        for filename in files_to_reset:
+            filepath = os.path.join(base_dir, filename)
+            try:
+                # "w"モードで開いてすぐ閉じることで内容を空にする
+                with open(filepath, "w", encoding="utf-8") as f:
+                    pass 
+                print(f"初期化完了: {filename}")
+            except Exception as e:
+                print(f"初期化失敗: {filename} ({e})")
+
+        # 2. outputs_estimated フォルダの中身を削除
+        outputs_dir = os.path.join(base_dir, "outputs_estimated")
+        
+        if os.path.exists(outputs_dir):
+            # フォルダ内の全ファイルを取得
+            files = glob.glob(os.path.join(outputs_dir, "*"))
+            for f in files:
+                try:
+                    os.remove(f) # ファイル削除
+                except Exception as e:
+                    print(f"削除失敗: {f} ({e})")
+            print(f"フォルダ内消去完了: {outputs_dir}")
+        else:
+            # フォルダがなければ作成しておく
+            try:
+                os.makedirs(outputs_dir)
+                print(f"フォルダ作成: {outputs_dir}")
+            except Exception as e:
+                print(f"フォルダ作成失敗: {e}")
+        
+        print("=== 初期化処理終了 ===\n")
 
     # ---------------------------------------
     # constructor （SceneManagerに合わせる）
     # ---------------------------------------
     def __init__(self):
         super().__init__()
+
+        # ▼▼▼ 初期化処理の実行 ▼▼▼
+        self.reset_game_data()
 
         # Fonts
         self.font = self.load_font(self.CUSTOM_FONT_PATH, self.FONT_SIZE)
